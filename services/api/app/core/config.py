@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://user:password@host/dbname"
     redis_url: str = "rediss://host:6379"
     clerk_webhook_secret: Optional[str] = None
+    clerk_jwks_url: Optional[str] = None
 
     # AI Service
     openrouter_api_key: Optional[str] = None
