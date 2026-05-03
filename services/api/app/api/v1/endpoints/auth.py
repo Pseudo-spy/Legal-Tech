@@ -9,17 +9,17 @@ import logging
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/webhooks/clerk")
+
+@router.post("/clerk")
 async def clerk_webhook(
-    request: Request,
-    db: AsyncSession = Depends(get_async_session)
+    request: Request, db: AsyncSession = Depends(get_async_session)
 ):
     """Handle Clerk webhooks for user sync."""
     if not settings.clerk_webhook_secret:
         logger.error("CLERK_WEBHOOK_SECRET not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Webhook secret not configured"
+            detail="Webhook secret not configured",
         )
 
     # Get headers
@@ -30,8 +30,7 @@ async def clerk_webhook(
 
     if not svix_id or not svix_timestamp or not svix_signature:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing svix headers"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Missing svix headers"
         )
 
     # Get body
@@ -45,8 +44,7 @@ async def clerk_webhook(
     except WebhookVerificationError as e:
         logger.warning(f"Webhook verification failed: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid signature"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature"
         )
 
     # Handle events
@@ -61,18 +59,18 @@ async def clerk_webhook(
             if email.get("id") == data.get("primary_email_address_id"):
                 primary_email = email.get("email_address")
                 break
-        
+
         if not primary_email and email_addresses:
             primary_email = email_addresses[0].get("email_address")
 
         if clerk_user_id and primary_email:
             await user_repo.upsert_user(
-                db,
-                clerk_user_id=clerk_user_id,
-                email=primary_email
+                db, clerk_user_id=clerk_user_id, email=primary_email
             )
             logger.info(f"User {clerk_user_id} synced via webhook ({event_type})")
         else:
-            logger.warning(f"Incomplete user data in webhook: {clerk_user_id}, {primary_email}")
+            logger.warning(
+                f"Incomplete user data in webhook: {clerk_user_id}, {primary_email}"
+            )
 
     return {"status": "ok"}

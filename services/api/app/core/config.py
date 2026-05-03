@@ -11,7 +11,7 @@ class Settings(BaseSettings):
                     os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
                 )
             ),
-            ".env"
+            ".env",
         ),
         env_file_encoding="utf-8",
         case_sensitive=False,
@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # Shared
     ai_service_url: str = "http://localhost:8001"
     environment: str = "development"
+    cors_origins: list = ["http://localhost:3000"]
 
 
 settings = Settings()
