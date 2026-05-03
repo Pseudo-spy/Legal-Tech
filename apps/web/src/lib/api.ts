@@ -63,19 +63,19 @@ export function useApiClient() {
     request<ScanJob>(`/api/v1/scan/${jobId}`), [request]);
 
   const getClauses = useCallback((contractId: string) => 
-    request<Clause[]>(`/contracts/${contractId}/clauses`), [request]);
+    request<Clause[]>(`/api/v1/contracts/${contractId}/clauses`), [request]);
 
   const getAnalysis = useCallback((contractId: string) => 
-    request<AnalysisResult>(`/analysis/${contractId}`), [request]);
+    request<AnalysisResult>(`/api/v1/analysis/${contractId}`), [request]);
 
   const getSummary = useCallback((contractId: string) => 
-    request<SummaryResult>(`/summary/${contractId}`), [request]);
+    request<SummaryResult>(`/api/v1/summary/${contractId}`), [request]);
 
   const getPower = useCallback((contractId: string) => 
-    request<PowerResult>(`/power/${contractId}`), [request]);
+    request<PowerResult>(`/api/v1/power/${contractId}`), [request]);
 
   const getPrecedent = useCallback((clauseId: string) => 
-    request<PrecedentMatch>(`/precedent/${clauseId}`), [request]);
+    request<PrecedentMatch>(`/api/v1/precedent/${clauseId}`), [request]);
 
   const generateCounterOffer = useCallback((clauseId: string) => 
     request<{ task_id: string }>(`/api/v1/counter-offer/${clauseId}`, { method: "POST" }), [request]);

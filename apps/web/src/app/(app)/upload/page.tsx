@@ -7,12 +7,17 @@ import { EncryptionBadge } from "@/features/upload/EncryptionBadge";
 import { UploadProgress } from "@/features/upload/UploadProgress";
 import { FileText, AlertCircle } from "lucide-react";
 import { useApiClient } from "@/lib/api";
+import { useUploadThing } from "@/lib/uploadthing";
+import { useEncryption } from "@/hooks/useEncryption";
 
 type UploadState = "idle" | "encrypting" | "uploading" | "complete" | "error";
 
 export default function UploadPage() {
   const router = useRouter();
   const { upload } = useApiClient();
+  const { startUpload, isUploading } = useUploadThing("contractUploader");
+  const { encrypt, clearKey, key } = useEncryption();
+
   const [status, setStatus] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<"encrypting" | "uploading" | "complete">("encrypting");
@@ -29,39 +34,70 @@ export default function UploadPage() {
       setProgress(0);
 
       try {
-        // Step 1: Simulate encryption (for now - in production, encrypt with WebCrypto)
-        setProgress(20);
+        // Step 1: Generate encryption key and encrypt file
+        setProgress(10);
         setPhase("encrypting");
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        
-        // In production: Use Uploadthing - for now use mock URL
-        // For real Uploadthing, you'd need proper configuration
-        const mockFileUrl = `https://uploadthing.com/files/${file.name}`;
-        
-        setProgress(50);
+
+        const encryptedBlob = await encrypt(file);
+
+        if (!encryptedBlob) {
+          throw new Error("Encryption failed");
+        }
+
+        setProgress(30);
+
+        // Convert encrypted blob to File object for Uploadthing
+        const mimeType = file.type ||
+          (file.name.toLowerCase().endsWith(".pdf")
+            ? "application/pdf"
+            : file.name.toLowerCase().endsWith(".docx")
+              ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              : "application/octet-stream");
+
+        const encryptedFile = new File([encryptedBlob], file.name, {
+          type: mimeType,
+        });
+
+        // Step 2: Upload encrypted file to Uploadthing
+        setProgress(40);
         setPhase("uploading");
         setStatus("uploading");
-        
-        // Step 2: Call backend API
+
+        const uploadResult = await startUpload([encryptedFile]);
+
+        if (!uploadResult || uploadResult.length === 0) {
+          throw new Error("Upload failed - no file returned");
+        }
+
+        const fileUrl = uploadResult[0].ufsUrl;
+
+        setProgress(80);
+
+        // Step 3: Call backend API to create scan job
         const response = await upload(
-          mockFileUrl,
+          fileUrl,
           file.name,
           file.name.split('.').pop() || 'pdf',
           file.size
         );
-        
+
         setProgress(100);
         setPhase("complete");
         setStatus("complete");
-        
+
         setJobId(response.job_id);
         setContractId(response.contract_id);
+
+        // Clear encryption key from memory after upload
+        clearKey();
       } catch (e) {
+        console.error("Upload error:", e);
         setStatus("error");
         setError(e instanceof Error ? e.message : "Upload failed");
+        clearKey();
       }
     },
-    [upload]
+    [upload, startUpload, encrypt, clearKey]
   );
 
   const handleContinue = useCallback(() => {
@@ -76,6 +112,8 @@ export default function UploadPage() {
     setPhase("encrypting");
     setError(null);
     setSelectedFile(null);
+    setJobId(null);
+    setContractId(null);
   }, []);
 
   return (
