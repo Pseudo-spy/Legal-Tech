@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { UserButton, useUser } from "@clerk/nextjs";
 import {
   Shield,
   Zap,
@@ -45,6 +48,8 @@ const features = [
 ];
 
 export default function Home() {
+  const { isLoaded, isSignedIn } = useUser();
+
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur">
@@ -54,18 +59,32 @@ export default function Home() {
             <span className="text-xl font-bold text-zinc-900">LegalTech AI</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link
-              href="/sign-in"
-              className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/sign-up"
-              className="px-4 py-2 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors"
-            >
-              Analyze Your Contract Free
-            </Link>
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <UserButton />
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="px-4 py-2 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors"
+                >
+                  Analyze Your Contract Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
