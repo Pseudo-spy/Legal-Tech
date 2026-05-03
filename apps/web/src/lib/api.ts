@@ -1,0 +1,132 @@
+import { useAuth } from "@clerk/nextjs";
+import { useCallback, useState } from "react";
+import { ScanJob } from "@/types/scan";
+import { Clause } from "@/types/clause";
+import { AnalysisResult, PowerResult, SummaryResult, DashboardContract } from "@/types/analysis";
+import { ChatMessage, CounterOffer, PrecedentMatch, Report, ApiError, UploadResponse, ContractsResponse } from "@/types/api";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export function useApiClient() {
+  const { getToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const request = useCallback(async <T,>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> => {
+    setLoading(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = "/sign-in";
+          throw new Error("Unauthorized");
+        }
+        const error: ApiError = await response.json().catch(() => ({
+          status_code: response.status,
+          detail: "An error occurred",
+        }));
+        throw new Error(error.detail);
+      }
+
+      return response.json();
+    } finally {
+      setLoading(false);
+    }
+  }, [getToken]);
+
+  const upload = useCallback((fileUrl: string, originalFilename: string, fileType: string, fileSize: number) => 
+    request<UploadResponse>("/api/v1/upload", {
+      method: "POST",
+      body: JSON.stringify({ 
+        file_url: fileUrl,
+        original_filename: originalFilename,
+        file_type: fileType,
+        file_size_bytes: fileSize
+      }),
+    }), [request]);
+
+  const getContracts = useCallback(() => 
+    request<ContractsResponse>("/api/v1/contracts/"), [request]);
+
+  const getScanJob = useCallback((jobId: string) => 
+    request<ScanJob>(`/api/v1/scan/${jobId}`), [request]);
+
+  const getClauses = useCallback((contractId: string) => 
+    request<Clause[]>(`/contracts/${contractId}/clauses`), [request]);
+
+  const getAnalysis = useCallback((contractId: string) => 
+    request<AnalysisResult>(`/analysis/${contractId}`), [request]);
+
+  const getSummary = useCallback((contractId: string) => 
+    request<SummaryResult>(`/summary/${contractId}`), [request]);
+
+  const getPower = useCallback((contractId: string) => 
+    request<PowerResult>(`/power/${contractId}`), [request]);
+
+  const getPrecedent = useCallback((clauseId: string) => 
+    request<PrecedentMatch>(`/precedent/${clauseId}`), [request]);
+
+  const generateCounterOffer = useCallback((clauseId: string) => 
+    request<{ task_id: string }>(`/api/v1/counter-offer/${clauseId}`, { method: "POST" }), [request]);
+
+  const getCounterOffer = useCallback((clauseId: string) => 
+    request<CounterOffer>(`/api/v1/counter-offer/${clauseId}`), [request]);
+
+  const generateReport = useCallback((contractId: string) => 
+    request<{ report_id: string }>(`/api/v1/report/generate/${contractId}`, { method: "POST" }), [request]);
+
+  const getReport = useCallback((reportId: string) => 
+    request<Report>(`/api/v1/report/${reportId}`), [request]);
+
+  const getSharedReport = useCallback((shareUuid: string) => 
+    request<Report>(`/api/v1/report/share/${shareUuid}`), [request]);
+
+  const chat = useCallback((contractId: string, message: string, conversationId?: string) =>
+    request<ChatMessage>(`/api/v1/chat/${contractId}`, {
+      method: "POST",
+      body: JSON.stringify({ message, conversation_id: conversationId }),
+    }), [request]);
+
+  const translate = useCallback((contractId: string, targetLanguage: string) =>
+    request<{ task_id: string }>(`/api/v1/translate/${contractId}`, {
+      method: "POST",
+      body: JSON.stringify({ target_language: targetLanguage }),
+    }), [request]);
+
+  const getDashboard = useCallback(() =>
+    request<{
+      contracts: DashboardContract[];
+      power_trend: { average_power_score: number; trend_description: string } | null;
+    }>("/api/v1/dashboard"), [request]);
+
+  return {
+    loading,
+    upload,
+    getContracts,
+    getScanJob,
+    getClauses,
+    getAnalysis,
+    getSummary,
+    getPower,
+    getPrecedent,
+    generateCounterOffer,
+    getCounterOffer,
+    generateReport,
+    getReport,
+    getSharedReport,
+    chat,
+    translate,
+    getDashboard,
+  };
+}
