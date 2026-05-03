@@ -3,13 +3,17 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
+
 class ContractBase(BaseModel):
     original_filename: str
     file_type: str  # pdf or docx
     file_size_bytes: int
 
+
 class ContractCreate(ContractBase):
     file_url: HttpUrl
+    encryption_key: Optional[str] = None  # Hex-encoded AES-256 key for decryption
+
 
 class ContractRead(ContractBase):
     id: UUID

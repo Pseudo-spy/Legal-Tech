@@ -3,15 +3,16 @@ from uuid import UUID
 from app.repositories import contract_repo, scan_job_repo, user_repo
 from app.schemas.contract import ContractCreate
 from app.schemas.scan_job import ScanResponse, ScanStatus
-from typing import Tuple
+from typing import Tuple, Optional
 from fastapi import HTTPException
 
 
 async def create_contract_and_job(
     db: AsyncSession, clerk_user_id: str, contract_data: ContractCreate
-) -> Tuple[UUID, UUID, ScanStatus]:
+) -> Tuple[UUID, UUID, ScanStatus, Optional[str]]:
     """
     Business logic for creating a contract and its initial scan job.
+    Returns: (job_id, contract_id, status, encryption_key)
     """
     # 0. Look up user by Clerk ID to get internal UUID
     user = await user_repo.get_user_by_clerk_id(db, clerk_user_id)
@@ -35,7 +36,5 @@ async def create_contract_and_job(
         session=db, contract_id=contract.id, status="queued", progress_pct=0
     )
 
-    # 3. Queue the Celery task (will implement the import later or use a generic trigger)
-    # For now, we'll just return the IDs. The actual triggering will happen in the endpoint.
-
-    return scan_job.id, contract.id, ScanStatus.QUEUED
+    # Return encryption key if provided
+    return scan_job.id, contract.id, ScanStatus.QUEUED, contract_data.encryption_key
