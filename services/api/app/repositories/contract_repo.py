@@ -33,9 +33,14 @@ async def create_contract(
     return contract
 
 
-async def get_contract_by_id(session: AsyncSession, contract_id: UUID) -> Optional[Contract]:
-    """Get contract by ID."""
-    result = await session.execute(select(Contract).where(Contract.id == contract_id))
+async def get_contract_by_id(
+    session: AsyncSession, contract_id: UUID, user_id: Optional[UUID] = None
+) -> Optional[Contract]:
+    """Get contract by ID. If user_id provided, scope to that user for security."""
+    query = select(Contract).where(Contract.id == contract_id)
+    if user_id:
+        query = query.where(Contract.user_id == user_id)
+    result = await session.execute(query)
     return result.scalars().first()
 
 
@@ -59,10 +64,11 @@ async def get_all_contracts_by_user_id(
 async def update_contract(
     session: AsyncSession,
     contract_id: UUID,
+    user_id: UUID,
     **kwargs,
 ) -> Optional[Contract]:
-    """Update contract fields."""
-    contract = await get_contract_by_id(session, contract_id)
+    """Update contract fields. Scoped to user_id for security."""
+    contract = await get_contract_by_id(session, contract_id, user_id)
     if not contract:
         return None
 
@@ -75,9 +81,11 @@ async def update_contract(
     return contract
 
 
-async def delete_contract(session: AsyncSession, contract_id: UUID) -> bool:
-    """Delete a contract (cascades to clauses, scan_jobs, etc.)."""
-    contract = await get_contract_by_id(session, contract_id)
+async def delete_contract(
+    session: AsyncSession, contract_id: UUID, user_id: UUID
+) -> bool:
+    """Delete a contract (cascades to clauses, scan_jobs, etc.). Scoped to user_id."""
+    contract = await get_contract_by_id(session, contract_id, user_id)
     if not contract:
         return False
 

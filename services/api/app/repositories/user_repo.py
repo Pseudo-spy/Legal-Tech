@@ -65,3 +65,31 @@ async def delete_user(session: AsyncSession, user_id: UUID) -> bool:
     await session.delete(user)
     await session.commit()
     return True
+
+
+async def upsert_user(
+    session: AsyncSession,
+    clerk_user_id: str,
+    email: str,
+    **kwargs,
+) -> User:
+    """Upsert a user record based on Clerk user ID."""
+    user = await get_user_by_clerk_id(session, clerk_user_id)
+    if user:
+        # Update existing user
+        for key, value in kwargs.items():
+            if hasattr(user, key) and key not in ("id", "clerk_user_id", "created_at"):
+                setattr(user, key, value)
+        user.email = email  # Always update email if it changed
+    else:
+        # Create new user
+        user = User(
+            clerk_user_id=clerk_user_id,
+            email=email,
+            **kwargs,
+        )
+        session.add(user)
+    
+    await session.commit()
+    await session.refresh(user)
+    return user
