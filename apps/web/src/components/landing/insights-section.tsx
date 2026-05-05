@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 export function InsightsSection() {
   return (
-    <section className="relative z-10 py-24 px-4 bg-zinc-100 dark:bg-[#0a0a0a]">
+    <section className="relative z-10 py-24 px-4 bg-zinc-100/30 dark:bg-[#050505]/30 backdrop-blur-md">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4 tracking-tight">

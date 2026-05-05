@@ -6,7 +6,7 @@ import { ShieldCheck, FileCheck, FileWarning, Zap } from "lucide-react";
 
 export function IntegritySection() {
   return (
-    <section className="relative z-10 py-32 px-4 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-white/5 overflow-hidden">
+    <section className="relative z-10 py-32 px-4 bg-zinc-50/30 dark:bg-[#050505]/30 backdrop-blur-md border-t border-zinc-200 dark:border-white/5 overflow-hidden">
       
       {/* Background glow for this specific section */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-zinc-200/50 dark:bg-zinc-900/50 blur-[120px] pointer-events-none" />
