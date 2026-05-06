@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { HeroBackground } from "@/components/landing/hero-background";
 import { InsightsSection } from "@/components/landing/insights-section";
 import { IntegritySection } from "@/components/landing/integrity-section";
+import { LandingFooter } from "@/components/landing/landing-footer";
 import MagicRings from "@/components/MagicRings";
 import AnimatedContent from "@/components/animations/AnimatedContent";
 
@@ -260,6 +261,8 @@ export default function Home() {
           </div>
         </AnimatedContent>
       </section>
+
+      <LandingFooter />
 
     </div>
   );
