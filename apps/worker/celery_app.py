@@ -23,4 +23,12 @@ app.conf.update(
     task_soft_time_limit=1500,
     worker_pool="solo",
     worker_concurrency=1,
+    beat_schedule={
+        "cleanup-expired-reports-hourly": {
+            "task": "cleanup_expired_reports",
+            "schedule": 3600.0, # Hourly
+        },
+    },
 )
+
+app.autodiscover_tasks(["apps.worker.tasks"], force=True)

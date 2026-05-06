@@ -3,6 +3,7 @@
 from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.contract import Contract
 
@@ -50,9 +51,10 @@ async def get_all_contracts_by_user_id(
     limit: int = 100,
     offset: int = 0,
 ) -> List[Contract]:
-    """Get all contracts for a user."""
+    """Get all contracts for a user with analysis results."""
     result = await session.execute(
         select(Contract)
+        .options(joinedload(Contract.analysis_result))
         .where(Contract.user_id == user_id)
         .limit(limit)
         .offset(offset)
