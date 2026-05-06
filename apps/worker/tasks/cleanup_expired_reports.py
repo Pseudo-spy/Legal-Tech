@@ -2,7 +2,7 @@ import asyncio
 import os
 from celery.utils.log import get_task_logger
 
-from apps.worker.celery_app import app
+from celery_app import app
 from app.db.session import SessionLocal
 from app.repositories import report_repo
 

@@ -5,7 +5,7 @@ from celery.utils.log import get_task_logger
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from apps.worker.celery_app import app
+from celery_app import app
 from app.db.session import SessionLocal
 from app.models.contract import Contract
 from app.models.clause import Clause

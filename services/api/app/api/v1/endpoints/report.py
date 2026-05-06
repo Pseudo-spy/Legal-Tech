@@ -8,7 +8,7 @@ from app.db.session import get_async_session
 from app.core.security import get_current_user_id
 from app.repositories import contract_repo, user_repo
 from app.services import report_service
-from apps.worker.celery_app import app as celery_app
+from app.core.celery import celery_app
 
 router = APIRouter()
 
