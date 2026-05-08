@@ -78,3 +78,7 @@ desktop.ini
 generated_pdfs/
 
 .cache/
+
+# Legal AI Data (seeded locally, not pushed to git)
+services/ai/app/data/favorable_clauses/
+services/ai/app/data/precedents/
