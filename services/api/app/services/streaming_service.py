@@ -14,11 +14,12 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-REDIS_CHANNEL_PREFIX = "scan:job:"
+REDIS_CHANNEL_PREFIX = "scan:"
 
 # ---------------------------------------------------------------------------
 # Synchronous Redis client (used by Celery workers — no async event loop)
 # ---------------------------------------------------------------------------
+
 
 def _get_sync_client() -> redis.Redis:
     """Return a synchronous Redis client from the configured URL."""
@@ -28,6 +29,7 @@ def _get_sync_client() -> redis.Redis:
 # ---------------------------------------------------------------------------
 # Public publisher functions
 # ---------------------------------------------------------------------------
+
 
 def publish_clause(job_id: str, clause_data: Dict[str, Any]) -> None:
     """
@@ -62,11 +64,13 @@ def publish_progress(job_id: str, progress_pct: int, step_name: str = "") -> Non
         step_name:    Human-readable pipeline step label (optional).
     """
     channel = f"{REDIS_CHANNEL_PREFIX}{job_id}"
-    message = json.dumps({
-        "type": "progress",
-        "progress_pct": progress_pct,
-        "step": step_name,
-    })
+    message = json.dumps(
+        {
+            "type": "progress",
+            "progress_pct": progress_pct,
+            "step": step_name,
+        }
+    )
     try:
         client = _get_sync_client()
         client.publish(channel, message)
@@ -87,10 +91,12 @@ def publish_complete(job_id: str, summary: Dict[str, Any] | None = None) -> None
         summary:  Optional high-level summary dict to send with the event.
     """
     channel = f"{REDIS_CHANNEL_PREFIX}{job_id}"
-    message = json.dumps({
-        "type": "complete",
-        "summary": summary or {},
-    })
+    message = json.dumps(
+        {
+            "type": "complete",
+            "summary": summary or {},
+        }
+    )
     try:
         client = _get_sync_client()
         client.publish(channel, message)
@@ -108,10 +114,12 @@ def publish_error(job_id: str, error_message: str) -> None:
         error_message:  Human-readable description of what went wrong.
     """
     channel = f"{REDIS_CHANNEL_PREFIX}{job_id}"
-    message = json.dumps({
-        "type": "error",
-        "detail": error_message,
-    })
+    message = json.dumps(
+        {
+            "type": "error",
+            "detail": error_message,
+        }
+    )
     try:
         client = _get_sync_client()
         client.publish(channel, message)

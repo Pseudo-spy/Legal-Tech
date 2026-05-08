@@ -24,12 +24,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 HEARTBEAT_INTERVAL = 15  # seconds
-REDIS_CHANNEL_PREFIX = "scan:job:"
+REDIS_CHANNEL_PREFIX = "scan:"
 
 
 # ---------------------------------------------------------------------------
 # Helper: async SSE generator
 # ---------------------------------------------------------------------------
+
 
 async def _sse_generator(
     job_id: str,
@@ -51,7 +52,7 @@ async def _sse_generator(
     # ── 1. Confirm job is still owned by this user ──────────────────────────
     job = await repo.get_by_id(job_id)
     if not job or str(job.user_id) != user_id:
-        yield "event: error\ndata: {\"detail\": \"Not found\"}\n\n"
+        yield 'event: error\ndata: {"detail": "Not found"}\n\n'
         return
 
     # ── 2. If the job is already complete, stream stored clauses + done ──────
@@ -103,7 +104,9 @@ async def _sse_generator(
                 try:
                     payload = json.loads(raw)
                 except json.JSONDecodeError:
-                    logger.warning("SSE: invalid JSON on channel %s: %r", channel_name, raw)
+                    logger.warning(
+                        "SSE: invalid JSON on channel %s: %r", channel_name, raw
+                    )
                     continue
 
                 msg_type = payload.get("type", "")
@@ -132,6 +135,7 @@ async def _sse_generator(
 # ---------------------------------------------------------------------------
 # Route
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/scan/{job_id}/stream",
@@ -166,9 +170,13 @@ async def stream_scan_results(
     repo = ScanJobRepository(db)
     job = await repo.get_by_id(job_id)
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
     if str(job.user_id) != str(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
 
     generator = _sse_generator(
         job_id=job_id,
@@ -181,7 +189,7 @@ async def stream_scan_results(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # disable Nginx buffering
+            "X-Accel-Buffering": "no",  # disable Nginx buffering
             "Connection": "keep-alive",
         },
     )
