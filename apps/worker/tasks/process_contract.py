@@ -414,7 +414,15 @@ async def run_pipeline(
         publish_progress(str(contract_id), 98, "Creating embeddings")
         logger.info("Step 15: Running embedding pipeline")
 
-        # TODO: Implement embedding pipeline
+        # Call the embed_contract task
+        try:
+            from .embed_contract import embed_contract_task
+
+            embed_contract_task.delay(str(contract_id))
+            logger.info("Step 15: Embedding task queued for %s", contract_id)
+        except Exception as e:
+            logger.warning("Step 15: Failed to queue embedding task: %s", e)
+
         logger.info("Step 15: Embedding pipeline complete")
 
         # ------------------------------------------------------------------
