@@ -12,6 +12,8 @@ app = Celery(
     backend=redis_url,
 )
 
+celery_app = app
+
 app.conf.update(
     task_serializer="json",
     accept_content=["json"],

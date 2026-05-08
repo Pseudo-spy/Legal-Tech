@@ -1,5 +1,7 @@
 """User model."""
 
+from __future__ import annotations
+
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, func

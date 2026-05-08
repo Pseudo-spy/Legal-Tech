@@ -127,3 +127,13 @@ async def delete_scan_job(session: AsyncSession, job_id: UUID, user_id: UUID) ->
     await session.delete(job)
     await session.commit()
     return True
+
+
+class ScanJobRepository:
+    """Class-based wrapper for scan job repository functions."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, job_id: UUID, user_id: Optional[UUID] = None) -> Optional[ScanJob]:
+        return await get_scan_job_by_id(self.session, job_id, user_id)

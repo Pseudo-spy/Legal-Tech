@@ -1,86 +1,190 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { useScanStore } from "@/store/scanStore";
-import { useClauseStore } from "@/store/clauseStore";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-interface SSEEvent {
-  event_type: "clause_result" | "power_result" | "summary_result" | "heartbeat" | "complete";
-  data: unknown;
-}
+const RECONNECT_DELAY_MS = 2000;
 
-export function useSSE(jobId: string) {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastEvent, setLastEvent] = useState<SSEEvent | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
+export type ClauseResult = {
+  clause_index: number;
+  clause_text: string;
+  risk_severity: string;
+  safety_rating: string;
+  risk_categories: string[];
+  explanation: string;
+  recommendation: string;
+};
+
+export function useSSE({
+  token,
+  baseUrl = "",
+  maxRetries = 3,
+  onClause,
+  onProgress,
+  onComplete,
+  onError,
+}: {
+  token: string;
+  baseUrl?: string;
+  maxRetries?: number;
+  onClause?: (result: ClauseResult) => void;
+  onProgress?: (progress: number, step: string) => void;
+  onComplete?: (summary: Record<string, unknown>) => void;
+  onError?: (error: string) => void;
+}) {
+  const [status, setStatus] = useState<
+    "idle" | "connecting" | "open" | "complete" | "error"
+  >("idle");
+
+  const esRef = useRef<EventSource | null>(null);
   const retriesRef = useRef(0);
-  const { getToken } = useAuth();
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jobIdRef = useRef<string | null>(null);
 
-  const { updateProgress, setComplete } = useScanStore();
-  const { addClause } = useClauseStore();
+  const onClauseRef = useRef(onClause);
+  const onProgressRef = useRef(onProgress);
+  const onCompleteRef = useRef(onComplete);
+  const onErrorRef = useRef(onError);
 
-  const connect = useCallback(async () => {
-    if (!jobId) return;
+  useEffect(() => {
+    onClauseRef.current = onClause;
+    onProgressRef.current = onProgress;
+    onCompleteRef.current = onComplete;
+    onErrorRef.current = onError;
+  }, [onClause, onProgress, onComplete, onError]);
 
-    setConnectionError(null);
-    const token = await getToken();
-
-    try {
-      const eventSource = new EventSource(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/scan/${jobId}/stream?token=${token}`
-      );
-
-      eventSource.onopen = () => {
-        setIsConnected(true);
-        retriesRef.current = 0;
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const parsed: SSEEvent = JSON.parse(event.data);
-          setLastEvent(parsed);
-
-          if (parsed.event_type === "clause_result") {
-            addClause(parsed.data as any);
-          } else if (parsed.event_type === "power_result") {
-            updateProgress(0, "processing");
-          } else if (parsed.event_type === "summary_result") {
-            updateProgress(100, "complete");
-          } else if (parsed.event_type === "complete") {
-            setComplete();
-            eventSource.close();
-            setIsConnected(false);
-          }
-        } catch (e) {
-          console.error("Failed to parse SSE event:", e);
-        }
-      };
-
-      eventSource.onerror = () => {
-        setIsConnected(false);
-        eventSource.close();
-
-        if (retriesRef.current < 5) {
-          retriesRef.current++;
-          setTimeout(() => connect(), Math.min(2000 * retriesRef.current, 30000));
-        } else {
-          setConnectionError("Connection failed after multiple retries");
-        }
-      };
-
-      eventSourceRef.current = eventSource;
-    } catch (e) {
-      setConnectionError("Failed to connect");
+  const closeEventSource = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
-  }, [jobId, getToken, addClause, updateProgress, setComplete]);
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
+    }
+  }, []);
+
+  const dispose = useCallback(() => {
+    closeEventSource();
+    setStatus("idle");
+    jobIdRef.current = null;
+    retriesRef.current = 0;
+  }, [closeEventSource]);
 
   useEffect(() => {
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
+      dispose();
     };
-  }, []);
+  }, [dispose]);
 
-  return { isConnected, lastEvent, connectionError, connect };
+  // ── Connect function stored in ref to allow self-reference ───────────
+  const connectFnRef = useRef<(jobId: string) => void>(() => {});
+
+  useEffect(() => {
+    const createEventSource = (jobId: string) => {
+      if (esRef.current && esRef.current.readyState !== EventSource.CLOSED) {
+        return;
+      }
+
+      closeEventSource();
+      setStatus("connecting");
+      jobIdRef.current = jobId;
+      retriesRef.current = 0;
+
+      const url = `${baseUrl}/v1/scan/${jobId}/stream?token=${encodeURIComponent(token)}`;
+
+      const es = new EventSource(url);
+      esRef.current = es;
+
+      es.onopen = () => {
+        setStatus("open");
+        retriesRef.current = 0;
+      };
+
+      es.onmessage = (event: MessageEvent<string>) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === "clause" && payload.data) {
+            onClauseRef.current?.(payload.data);
+          }
+        } catch {
+          console.warn("[useSSE] Failed to parse message:", event.data);
+        }
+      };
+
+      es.addEventListener("progress", (event: MessageEvent<string>) => {
+        try {
+          const payload = JSON.parse(event.data);
+          onProgressRef.current?.(payload.progress_pct ?? 0, payload.step ?? "");
+        } catch {
+          console.warn("[useSSE] Failed to parse progress:", event.data);
+        }
+      });
+
+      es.addEventListener("complete", (event: MessageEvent<string>) => {
+        try {
+          const payload = JSON.parse(event.data);
+          setStatus("complete");
+          onCompleteRef.current?.(payload.summary ?? {});
+        } catch {
+          setStatus("complete");
+          onCompleteRef.current?.({});
+        }
+        closeEventSource();
+      });
+
+      es.addEventListener("error", (event: MessageEvent<string>) => {
+        try {
+          const payload = JSON.parse(event.data);
+          setStatus("error");
+          onErrorRef.current?.(payload.detail ?? "Stream error");
+        } catch {
+          setStatus("error");
+          onErrorRef.current?.("Stream error");
+        }
+        closeEventSource();
+      });
+
+      es.onerror = () => {
+        if (status !== "complete" && status !== "error") {
+          if (retriesRef.current >= maxRetries) {
+            setStatus("error");
+            onErrorRef.current?.("Max reconnect attempts reached");
+            return;
+          }
+
+          retriesRef.current += 1;
+          const delay = RECONNECT_DELAY_MS * retriesRef.current;
+          console.info(
+            `[useSSE] Reconnecting (attempt ${retriesRef.current}/${maxRetries}) in ${delay}ms`,
+          );
+          setStatus("connecting");
+          reconnectTimerRef.current = setTimeout(() => {
+            const currentJobId = jobIdRef.current;
+            if (currentJobId) {
+              createEventSource(currentJobId);
+            }
+          }, delay);
+        }
+      };
+    };
+
+    connectFnRef.current = createEventSource;
+  }, [token, baseUrl, closeEventSource, maxRetries, status]);
+
+  const connect = useCallback(
+    (jobId: string) => {
+      connectFnRef.current(jobId);
+    },
+    [],
+  );
+
+  return {
+    status,
+    connect,
+    disconnect: dispose,
+    error: status === "error" ? new Error("SSE error") : null,
+  };
 }
