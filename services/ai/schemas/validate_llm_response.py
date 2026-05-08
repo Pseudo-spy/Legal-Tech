@@ -136,6 +136,11 @@ def validate_llm_response(
 # (avoids passing model_class everywhere in pipeline code)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Typed convenience wrappers — one per LLM response model
+# (avoids passing model_class everywhere in pipeline code)
+# ---------------------------------------------------------------------------
+
 def _make_validator(model_class: Type[T]):
     """Factory for typed validate_* helpers."""
     def _validate(
@@ -148,47 +153,21 @@ def _make_validator(model_class: Type[T]):
     return _validate
 
 
-# Import here to avoid circular imports at module level
-def _get_models():
-    from services.ai.schemas.llm_responses import (
-        LLMRiskAnalysis,
-        LLMTypeDetection,
-        LLMConsequence,
-        LLMSummary,
-        LLMPowerAsymmetry,
-        LLMCounterOffer,
-        LLMPrecedent,
-    )
-    return (
-        LLMRiskAnalysis, LLMTypeDetection, LLMConsequence,
-        LLMSummary, LLMPowerAsymmetry, LLMCounterOffer, LLMPrecedent,
-    )
+# Import at bottom to avoid circular imports — use package-relative path
+from .llm_responses import (  # noqa: E402
+    LLMRiskAnalysis,
+    LLMTypeDetection,
+    LLMConsequence,
+    LLMSummary,
+    LLMPowerAsymmetry,
+    LLMCounterOffer,
+    LLMPrecedent,
+)
 
-
-def validate_risk_analysis(raw, context=None):
-    (LLMRiskAnalysis, *_) = _get_models()
-    return validate_llm_response(LLMRiskAnalysis, raw, context=context)
-
-def validate_type_detection(raw, context=None):
-    (_, LLMTypeDetection, *_) = _get_models()
-    return validate_llm_response(LLMTypeDetection, raw, context=context)
-
-def validate_consequence(raw, context=None):
-    (_, _, LLMConsequence, *_) = _get_models()
-    return validate_llm_response(LLMConsequence, raw, context=context)
-
-def validate_summary(raw, context=None):
-    (_, _, _, LLMSummary, *_) = _get_models()
-    return validate_llm_response(LLMSummary, raw, context=context)
-
-def validate_power_asymmetry(raw, context=None):
-    (_, _, _, _, LLMPowerAsymmetry, *_) = _get_models()
-    return validate_llm_response(LLMPowerAsymmetry, raw, context=context)
-
-def validate_counter_offer(raw, context=None):
-    (_, _, _, _, _, LLMCounterOffer, _) = _get_models()
-    return validate_llm_response(LLMCounterOffer, raw, context=context)
-
-def validate_precedent(raw, context=None):
-    (*_, LLMPrecedent) = _get_models()
-    return validate_llm_response(LLMPrecedent, raw, context=context)
+validate_risk_analysis = _make_validator(LLMRiskAnalysis)
+validate_type_detection = _make_validator(LLMTypeDetection)
+validate_consequence = _make_validator(LLMConsequence)
+validate_summary = _make_validator(LLMSummary)
+validate_power_asymmetry = _make_validator(LLMPowerAsymmetry)
+validate_counter_offer = _make_validator(LLMCounterOffer)
+validate_precedent = _make_validator(LLMPrecedent)

@@ -4,25 +4,100 @@ services/ai/schemas/llm_responses.py
 Pydantic v2 models that mirror the exact JSON schemas defined in the prompt
 templates.  Every LLM response is validated against these models before
 being stored or passed to downstream code.
+
+NOTE: Enums are defined locally here rather than imported from the API
+service so that the AI service can be imported/tested independently.
+All enum values are kept in sync with services/api/app/schemas/response.py.
 """
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
 
-# Re-use the enums defined in the API schema layer
-from services.api.app.schemas.response import (
-    RiskLevel,
-    ContractType,
-    ImpactSeverity,
-    Likelihood,
-    NegotiationPriority,
-    AcceptanceLikelihood,
-    AsymmetryCategory,
-    Enforceability,
-    PrecedentType,
-)
+
+# ---------------------------------------------------------------------------
+# Mirrored enums (values must stay in sync with api/app/schemas/response.py)
+# ---------------------------------------------------------------------------
+
+class RiskLevel(str, Enum):
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+    SAFE = "SAFE"
+
+
+class ContractType(str, Enum):
+    EMPLOYMENT = "Employment"
+    NDA = "NDA"
+    FREELANCE_SOW = "Freelance/SOW"
+    SAAS_SUBSCRIPTION = "SaaS Subscription"
+    LEASE_RENTAL = "Lease/Rental"
+    PARTNERSHIP = "Partnership"
+    IP_LICENSE = "IP License"
+    LOAN = "Loan"
+    MA = "M&A"
+    OTHER = "Other"
+
+
+class ImpactSeverity(str, Enum):
+    CATASTROPHIC = "CATASTROPHIC"
+    SEVERE = "SEVERE"
+    MODERATE = "MODERATE"
+    MINOR = "MINOR"
+    NEGLIGIBLE = "NEGLIGIBLE"
+
+
+class Likelihood(str, Enum):
+    CERTAIN = "CERTAIN"
+    LIKELY = "LIKELY"
+    POSSIBLE = "POSSIBLE"
+    UNLIKELY = "UNLIKELY"
+    RARE = "RARE"
+
+
+class NegotiationPriority(str, Enum):
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
+
+class AcceptanceLikelihood(str, Enum):
+    VERY_LIKELY = "VERY_LIKELY"
+    LIKELY = "LIKELY"
+    POSSIBLE = "POSSIBLE"
+    UNLIKELY = "UNLIKELY"
+    VERY_UNLIKELY = "VERY_UNLIKELY"
+
+
+class AsymmetryCategory(str, Enum):
+    LIABILITY = "liability"
+    TERMINATION = "termination"
+    PAYMENT = "payment"
+    DISPUTE_RESOLUTION = "dispute_resolution"
+    INTELLECTUAL_PROPERTY = "intellectual_property"
+    INDEMNIFICATION = "indemnification"
+    CONFIDENTIALITY = "confidentiality"
+    NON_COMPETE = "non_compete"
+    OTHER = "other"
+
+
+class Enforceability(str, Enum):
+    HIGHLY_ENFORCEABLE = "HIGHLY_ENFORCEABLE"
+    LIKELY_ENFORCEABLE = "LIKELY_ENFORCEABLE"
+    UNCERTAIN = "UNCERTAIN"
+    UNLIKELY_ENFORCEABLE = "UNLIKELY_ENFORCEABLE"
+    NOT_ENFORCEABLE = "NOT_ENFORCEABLE"
+
+
+class PrecedentType(str, Enum):
+    CASE_LAW = "case_law"
+    STATUTORY = "statutory"
+    REGULATORY = "regulatory"
+    TREATY = "treaty"
+
 
 
 # ---------------------------------------------------------------------------
