@@ -8,11 +8,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.api.deps import get_current_user, get_db
-from app.models.user import User
-from app.models.clause import Clause
-from app.models.contract import Contract
-from app.models.precedent_match import PrecedentMatch
+from services.api.app.api.deps import get_current_user, get_db
+from services.api.app.models.user import User
+from services.api.app.models.clause import Clause
+from services.api.app.models.contract import Contract
+from services.api.app.models.precedent_match import PrecedentMatch
 from sqlalchemy import select
 
 router = APIRouter()

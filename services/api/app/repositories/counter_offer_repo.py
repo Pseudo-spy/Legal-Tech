@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.counter_offer import CounterOffer
+from services.api.app.models.counter_offer import CounterOffer
 
 
 async def create_counter_offer(
@@ -29,9 +29,13 @@ async def create_counter_offer(
     return offer
 
 
-async def get_counter_offer_by_id(session: AsyncSession, offer_id: UUID) -> Optional[CounterOffer]:
+async def get_counter_offer_by_id(
+    session: AsyncSession, offer_id: UUID
+) -> Optional[CounterOffer]:
     """Get counter-offer by ID."""
-    result = await session.execute(select(CounterOffer).where(CounterOffer.id == offer_id))
+    result = await session.execute(
+        select(CounterOffer).where(CounterOffer.id == offer_id)
+    )
     return result.scalars().first()
 
 

@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.report import Report
+from services.api.app.models.report import Report
 
 
 async def create_report(
@@ -34,13 +34,19 @@ async def get_report_by_id(session: AsyncSession, report_id: UUID) -> Optional[R
     return result.scalars().first()
 
 
-async def get_report_by_share_uuid(session: AsyncSession, share_uuid: str) -> Optional[Report]:
+async def get_report_by_share_uuid(
+    session: AsyncSession, share_uuid: str
+) -> Optional[Report]:
     """Get report by share UUID (for public sharing)."""
-    result = await session.execute(select(Report).where(Report.share_uuid == share_uuid))
+    result = await session.execute(
+        select(Report).where(Report.share_uuid == share_uuid)
+    )
     return result.scalars().first()
 
 
-async def get_report_by_contract_id(session: AsyncSession, contract_id: UUID) -> Optional[Report]:
+async def get_report_by_contract_id(
+    session: AsyncSession, contract_id: UUID
+) -> Optional[Report]:
     """Get most recent report for a contract."""
     result = await session.execute(
         select(Report)
@@ -67,9 +73,7 @@ async def delete_expired_reports(session: AsyncSession) -> int:
     from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc)
-    result = await session.execute(
-        select(Report).where(Report.share_expires_at <= now)
-    )
+    result = await session.execute(select(Report).where(Report.share_expires_at <= now))
     expired_reports = result.scalars().all()
 
     for report in expired_reports:

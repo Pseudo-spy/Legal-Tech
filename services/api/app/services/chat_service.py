@@ -9,8 +9,8 @@ from typing import List, Dict, Any, AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.repositories import contract_repo
-from app.models.contract import Contract
+from services.api.app.repositories import contract_repo
+from services.api.app.models.contract import Contract
 
 logger = logging.getLogger(__name__)
 

@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.db.session import get_async_session
-from app.core.security import get_current_user_id
-from app.repositories import contract_repo, user_repo, clause_repo, scan_job_repo
+from services.api.app.db.session import get_async_session
+from services.api.app.core.security import get_current_user_id
+from services.api.app.repositories import (
+    contract_repo,
+    user_repo,
+    clause_repo,
+    scan_job_repo,
+)
 
 router = APIRouter()
 
@@ -34,7 +39,9 @@ async def get_contracts(
                 "contract_type": c.contract_type,
                 "detected_language": c.detected_language,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
-                "overall_risk_score": c.analysis_result.overall_risk_score if c.analysis_result else None,
+                "overall_risk_score": c.analysis_result.overall_risk_score
+                if c.analysis_result
+                else None,
             }
             for c in contracts
         ]
@@ -48,7 +55,7 @@ async def get_contract_detail(
     user_id: str = Depends(get_current_user_id),
 ):
     """
-    Return the full contract detail including all clause results, 
+    Return the full contract detail including all clause results,
     analysis result, and scan job status.
     """
     # 1. Get internal user
@@ -60,7 +67,7 @@ async def get_contract_detail(
     contract = await contract_repo.get_contract_by_id(db, contractId)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
-    
+
     # 3. Verify ownership
     if contract.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized access to contract")
@@ -80,11 +87,21 @@ async def get_contract_detail(
         "detected_language": contract.detected_language,
         "created_at": contract.created_at.isoformat() if contract.created_at else None,
         "analysis_result": {
-            "overall_risk_score": contract.analysis_result.overall_risk_score if contract.analysis_result else None,
-            "should_sign": contract.analysis_result.should_sign if contract.analysis_result else None,
-            "top_concerns": contract.analysis_result.top_concerns if contract.analysis_result else [],
-            "top_positives": contract.analysis_result.top_positives if contract.analysis_result else [],
-        } if contract.analysis_result else None,
+            "overall_risk_score": contract.analysis_result.overall_risk_score
+            if contract.analysis_result
+            else None,
+            "should_sign": contract.analysis_result.should_sign
+            if contract.analysis_result
+            else None,
+            "top_concerns": contract.analysis_result.top_concerns
+            if contract.analysis_result
+            else [],
+            "top_positives": contract.analysis_result.top_positives
+            if contract.analysis_result
+            else [],
+        }
+        if contract.analysis_result
+        else None,
         "scan_status": {
             "status": latest_job.status if latest_job else "not_started",
             "progress_pct": latest_job.progress_pct if latest_job else 0,
@@ -102,7 +119,7 @@ async def get_contract_detail(
                 "confidence": cl.confidence,
             }
             for cl in clauses
-        ]
+        ],
     }
 
 
@@ -124,7 +141,7 @@ async def delete_contract(
     contract = await contract_repo.get_contract_by_id(db, contractId)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
-    
+
     # 3. Verify ownership
     if contract.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized access to contract")

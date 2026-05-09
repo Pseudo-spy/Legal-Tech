@@ -13,16 +13,16 @@ from typing import List, Dict, Any, Optional
 
 from celery import Task
 from celery.utils.log import get_task_logger
+import redis
 
-from celery_app import app
-from app.db.session import SessionLocal
-from app.models.contract import Contract
-from app.models.scan_job import ScanJob
-from app.models.clause import Clause
-from app.models.analysis_result import AnalysisResult
-from app.repositories.scan_job_repo import ScanJobRepository
-from app.repositories.contract_repo import ContractRepository
-from app.repositories.clause_repo import ClauseRepository
+from apps.worker.celery_app import celery_app as app
+from services.api.app.db.session import SessionLocal
+from services.api.app.models.contract import Contract
+from services.api.app.models.scan_job import ScanJob
+from services.api.app.models.clause import Clause
+from services.api.app.repositories.scan_job_repo import ScanJobRepository
+from services.api.app.repositories.contract_repo import ContractRepository
+from services.api.app.repositories.clause_repo import ClauseRepository
 
 logger = get_task_logger(__name__)
 
@@ -382,8 +382,6 @@ async def run_pipeline(
                     contract_id, cr["position_index"]
                 )
                 if not existing:
-                    from app.models.clause import Clause
-
                     clause = Clause(
                         id=UUID(cr["clause_id"]),
                         contract_id=contract_id,

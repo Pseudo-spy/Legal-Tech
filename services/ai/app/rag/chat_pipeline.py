@@ -23,7 +23,7 @@ from langchain_community.chat_models import (
     ChatOpenAI,
 )  # Using OpenRouter via OpenAI-compatible API
 
-from services.ai.models.openrouter_client import OpenRouterClient
+from app.models.openrouter_client import OpenRouterClient
 
 logger = logging.getLogger(__name__)
 

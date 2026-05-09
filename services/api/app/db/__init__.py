@@ -1,6 +1,5 @@
 """Database configuration and utilities."""
 
-from app.db.session import get_async_session, engine, AsyncSessionLocal
-from app.db.base import Base
-
-__all__ = ["get_async_session", "engine", "AsyncSessionLocal", "Base"]
+# NOTE: Keep this file minimal to avoid circular import issues.
+# Workers import SessionLocal directly from db.session instead.
+# Models are registered via db.base which is imported only when needed.

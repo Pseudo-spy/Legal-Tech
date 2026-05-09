@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.api.v1.endpoints import (
+from services.api.app.api.v1.endpoints import (
     auth,
     contracts,
     upload,
@@ -14,7 +14,7 @@ from app.api.v1.endpoints import (
     translate,
     health,
 )
-from app.core.security import get_current_user_id
+from services.api.app.core.security import get_current_user_id
 
 api_router = APIRouter()
 
