@@ -9,25 +9,14 @@ import json
 import logging
 from typing import List, Dict, Any, AsyncGenerator, Optional
 
-from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
-from langchain.prompts import (
-    PromptTemplate,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-    ChatPromptTemplate,
-)
+from langchain_community.chat_models import ChatOpenAI
 from langchain_community.vectorstores import PGVector
 from langchain_community.embeddings import SentenceTransformerEmbeddings
-from langchain_community.chat_models import (
-    ChatOpenAI,
-)  # Using OpenRouter via OpenAI-compatible API
-
-from services.ai.models.openrouter_client import OpenRouterClient
+from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
 
 logger = logging.getLogger(__name__)
 
-# Configuration
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 COLLECTION_NAME = "contract_qa"
@@ -74,29 +63,26 @@ def _get_chat_model(streaming: bool = False):
     )
 
 
-def _build_prompt_template() -> ChatPromptTemplate:
+def _build_prompt_template() -> PromptTemplate:
     """Build the chat prompt template with citation instructions."""
-    system_template = """You are a contract analysis assistant. You help users understand their contracts.
+    prompt_template = """You are a contract analysis assistant. You help users understand their contracts.
 
 RULES:
-1. Always cite the specific clause or section you reference in your answer (e.g., "Section 4.2 states..." or "The clause about termination says...")
-2. If the answer is NOT in the provided contract chunks, explicitly say "This topic is not addressed in the contract" - never fabricate contract terms.
+1. Always cite the specific clause or section you reference (e.g., "Section 4.2 states..." or "The clause about termination says...")
+2. If the answer is NOT in the provided context, say "This topic is not addressed in the contract" - never fabricate contract terms.
 3. Be concise and accurate. Use plain language.
-4. If you reference a specific clause, include the clause text in your answer."""
+4. If you reference a specific clause, include the clause text in your answer.
 
-    human_template = """Context (contract chunks):
-{context}
+Context: {context}
 
 Question: {question}
 
-Remember to cite clauses and say if the topic is not in the contract."""
+Answer:"""
 
-    messages = [
-        SystemMessagePromptTemplate.from_template(system_template),
-        HumanMessagePromptTemplate.from_template(human_template),
-    ]
-
-    return ChatPromptTemplate.from_messages(messages)
+    return PromptTemplate(
+        template=prompt_template,
+        input_variables=["context", "question"]
+    )
 
 
 async def answer_question(
@@ -106,75 +92,36 @@ async def answer_question(
 ) -> AsyncGenerator[str, None]:
     """
     Answer a question about a contract using RAG.
-
-    Parameters
-    ----------
-    contract_id : str
-        UUID of the contract.
-    question : str
-        User's question.
-    conversation_history : Optional[List[Dict[str, str]]]
-        Previous Q&A pairs for context.
-
-    Yields
-    ------
-    str
-        Tokens of the answer as they are generated (streaming).
     """
     logger.info("Processing question for contract %s: %s", contract_id, question[:100])
 
-    # Get vectorstore with contract-specific filter
-    vectorstore = _get_vectorstore(contract_id)
-
-    # Create retriever with contract_id filter
-    search_kwargs = {
-        "k": 5,
-        "filter": {"contract_id": contract_id},
-    }
-    retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
-
-    # Get chat model with streaming
-    chat_model = _get_chat_model(streaming=True)
-
-    # Build prompt
-    prompt = _build_prompt_template()
-
-    # Setup memory if conversation history provided
-    memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-    )
-
-    if conversation_history:
-        for msg in conversation_history:
-            if msg.get("role") == "user":
-                memory.chat_memory.add_user_message(msg.get("content", ""))
-            elif msg.get("role") == "assistant":
-                memory.chat_memory.add_ai_message(msg.get("content", ""))
-
-    # Create the chain
-    chain = ConversationalRetrievalChain.from_llm(
-        llm=chat_model,
-        retriever=retriever,
-        memory=memory,
-        combine_docs_chain_kwargs={"prompt": prompt},
-        return_source_documents=True,
-    )
-
-    # Run the chain and stream the response
     try:
-        # Note: ConversationalRetrievalChain doesn't natively stream in older versions
-        # We'll use a workaround: get the full response and yield it
-        result = await chain.ainvoke({"question": question})
+        vectorstore = _get_vectorstore(contract_id)
 
-        answer = result.get("answer", "")
+        search_kwargs = {
+            "k": 5,
+            "filter": {"contract_id": contract_id},
+        }
+        retriever = vectorstore.as_retriever(search_kwargs=search_kwargs)
+
+        chat_model = _get_chat_model(streaming=True)
+        prompt = _build_prompt_template()
+
+        chain = RetrievalQA.from_llm(
+            llm=chat_model,
+            retriever=retriever,
+            prompt=prompt,
+            return_source_documents=True,
+        )
+
+        result = chain({"query": question})
+
+        answer = result.get("result", result.get("answer", ""))
         source_documents = result.get("source_documents", [])
 
-        # Stream the answer token by token (simple implementation)
         for char in answer:
             yield char
 
-        # After streaming, yield the citation as a final event
         if source_documents:
             citation = "\n\n**Sources:**\n"
             for i, doc in enumerate(source_documents[:3], 1):

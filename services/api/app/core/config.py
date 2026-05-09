@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         ),
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Frontend
@@ -41,6 +42,8 @@ class Settings(BaseSettings):
     ai_service_url: str = "http://localhost:8001"
     environment: str = "development"
     cors_origins: list = ["http://localhost:3000"]
+    favorable_clauses_path: Optional[str] = "services/ai/app/data/favorable_clauses"
+    precedents_path: Optional[str] = "services/ai/app/data/precedents"
 
 
 settings = Settings()

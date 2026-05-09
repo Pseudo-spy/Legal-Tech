@@ -1,6 +1,6 @@
 """
-DeepL Translator (STEP 9.1).
-Replaces deep_translator (Google) with deepl for superior legal terminology.
+Translation using deep-translator (free, no API key required).
+Uses Google Translate as backend.
 """
 
 import os
@@ -8,29 +8,6 @@ import logging
 from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
-
-# Initialize DeepL translator
-_deepl_translator = None
-
-
-def _get_translator():
-    """Lazy-load DeepL translator."""
-    global _deepl_translator
-    if _deepl_translator is None:
-        try:
-            import deepl
-
-            api_key = os.getenv("DEEPL_API_KEY", "")
-            if not api_key:
-                logger.warning(
-                    "DEEPL_API_KEY not set. Translation will return original text."
-                )
-                return None
-            _deepl_translator = deepl.Translator(api_key)
-        except ImportError:
-            logger.error("deepl package not installed. Run: pip install deepl")
-            return None
-    return _deepl_translator
 
 
 def _load_legal_glossary() -> Dict[str, Dict[str, str]]:
@@ -88,31 +65,21 @@ def translate_text(
         return text
 
     if target_lang == "en":
-        # No translation needed if source is English
         if source_lang == "en":
             return text
 
-    translator = _get_translator()
-    if not translator:
-        logger.warning("DeepL translator not available, returning original text")
-        return text
-
     try:
-        result = translator.translate_text(
-            text,
-            source_lang=source_lang,
-            target_lang=target_lang,
-        )
-        translated = result.text
+        from deep_translator import GoogleTranslator
+        translator = GoogleTranslator(source=source_lang, target=target_lang)
+        translated = translator.translate(text)
 
-        # Apply legal glossary replacements
         translated = _apply_legal_glossary(translated, target_lang)
 
         return translated
 
     except Exception as e:
-        logger.error("DeepL translation failed: %s", e)
-        return text  # Return original on failure
+        logger.error("Google translation failed: %s", e)
+        return text
 
 
 def translate_batch(
@@ -121,7 +88,7 @@ def translate_batch(
     target_lang: str,
 ) -> List[str]:
     """
-    Translate multiple texts in a single API call.
+    Translate multiple texts.
 
     Parameters
     ----------
@@ -140,20 +107,14 @@ def translate_batch(
     if source_lang == target_lang:
         return texts
 
-    translator = _get_translator()
-    if not translator:
-        logger.warning("DeepL translator not available, returning original texts")
-        return texts
-
     try:
-        results = translator.translate_text(
-            texts,
-            source_lang=source_lang,
-            target_lang=target_lang,
-        )
-        translated = [r.text for r in results]
+        from deep_translator import GoogleTranslator
+        translated = []
+        for text in texts:
+            translator = GoogleTranslator(source=source_lang, target=target_lang)
+            result = translator.translate(text)
+            translated.append(result)
 
-        # Apply legal glossary to each translation
         glossary = _get_glossary()
         if glossary and target_lang in glossary:
             translated = [_apply_legal_glossary(t, target_lang) for t in translated]
@@ -161,26 +122,12 @@ def translate_batch(
         return translated
 
     except Exception as e:
-        logger.error("DeepL batch translation failed: %s", e)
-        return texts  # Return originals on failure
+        logger.error("Google batch translation failed: %s", e)
+        return texts
 
 
 def _apply_legal_glossary(text: str, target_lang: str) -> str:
-    """
-    Apply legal glossary replacements to translated text.
-
-    Parameters
-    ----------
-    text : str
-        Translated text.
-    target_lang : str
-        Target language code.
-
-    Returns
-    -------
-    str
-        Text with glossary terms replaced.
-    """
+    """Apply legal glossary replacements to translated text."""
     glossary = _get_glossary()
     if not glossary or target_lang not in glossary:
         return text
@@ -194,3 +141,17 @@ def _apply_legal_glossary(text: str, target_lang: str) -> str:
             )
 
     return result
+
+
+def translate_to_english(text: str, source_language: str) -> str:
+    """Translate text from source language to English."""
+    if source_language == "en":
+        return text
+    return translate_text(text, source_language, "en")
+
+
+def translate_from_english(text: str, target_language: str) -> str:
+    """Translate text from English to target language."""
+    if target_language == "en":
+        return text
+    return translate_text(text, "en", target_language)
