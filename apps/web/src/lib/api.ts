@@ -25,6 +25,11 @@ export function useApiClient() {
           Authorization: `Bearer ${token}`,
           ...options.headers,
         },
+      }).catch((err) => {
+        if (err instanceof TypeError && err.message === "Failed to fetch") {
+          throw new Error(`Network error: Could not connect to the API server at ${API_URL}. Please ensure the backend is running.`);
+        }
+        throw err;
       });
 
       if (!response.ok) {
