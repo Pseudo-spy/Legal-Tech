@@ -25,11 +25,6 @@ export function useApiClient() {
           Authorization: `Bearer ${token}`,
           ...options.headers,
         },
-      }).catch((err) => {
-        if (err instanceof TypeError && err.message === "Failed to fetch") {
-          throw new Error(`Network error: Could not connect to the API server at ${API_URL}. Please ensure the backend is running.`);
-        }
-        throw err;
       });
 
       if (!response.ok) {
@@ -50,14 +45,15 @@ export function useApiClient() {
     }
   }, [getToken]);
 
-  const upload = useCallback((fileUrl: string, originalFilename: string, fileType: string, fileSize: number) => 
+  const upload = useCallback((fileUrl: string, originalFilename: string, fileType: string, fileSize: number, encryptionKey?: string) => 
     request<UploadResponse>("/api/v1/upload", {
       method: "POST",
       body: JSON.stringify({ 
         file_url: fileUrl,
         original_filename: originalFilename,
         file_type: fileType,
-        file_size_bytes: fileSize
+        file_size_bytes: fileSize,
+        encryption_key: encryptionKey
       }),
     }), [request]);
 
