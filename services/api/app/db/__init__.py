@@ -1,5 +1,15 @@
 """Database configuration and utilities."""
 
-# NOTE: Keep this file minimal to avoid circular import issues.
-# Workers import SessionLocal directly from db.session instead.
-# Models are registered via db.base which is imported only when needed.
+from services.api.app.db.session import (
+    get_async_session,
+    engine,
+    AsyncSessionLocal,
+    SessionLocal,
+)
+
+__all__ = [
+    "get_async_session",
+    "engine",
+    "AsyncSessionLocal",
+    "SessionLocal",
+]
