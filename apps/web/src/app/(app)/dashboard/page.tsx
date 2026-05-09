@@ -1,143 +1,183 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   FileText, Upload, AlertCircle, ShieldCheck, 
-  Activity, ArrowRight, Clock, Plus
+  Activity, ArrowRight, Loader2, Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useApiClient } from "@/lib/api";
+import { DashboardContract } from "@/types/analysis";
+import { ContractCard } from "@/features/dashboard/ContractCard";
 
 export default function DashboardPage() {
-  const stats = {
-    activeContracts: 12,
-    highRiskFlags: 8,
-    averagePowerScore: -14
-  };
+  const { getDashboard } = useApiClient();
+  const [data, setData] = useState<{
+    contracts: DashboardContract[];
+    power_trend: { average_power_score: number; trend_description: string } | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const recentContracts = [
-    { id: "1", name: "Acme_Corp_NDA_2026.pdf", type: "NDA", riskScore: 15, verdict: "SAFE", date: "Just now" },
-    { id: "2", name: "Senior_Dev_Employment.docx", type: "Employment", riskScore: 78, verdict: "DANGER", date: "2 hours ago" },
-    { id: "3", name: "SaaS_Subscription_MSA.pdf", type: "MSA", riskScore: 45, verdict: "REVIEW", date: "Yesterday" },
-    { id: "4", name: "Freelance_Agreement.pdf", type: "Contractor", riskScore: 20, verdict: "SAFE", date: "2 days ago" },
-  ];
+  useEffect(() => {
+    async function load() {
+      try {
+        const result = await getDashboard();
+        setData(result);
+      } catch (err) {
+        console.error("Dashboard failed to load", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [getDashboard]);
+
+  const highRiskCount = data?.contracts.filter(c => c.overall_risk_score > 60).length || 0;
+  const activeCount = data?.contracts.length || 0;
+
+  if (loading) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 space-y-8 relative">
+    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 space-y-10 relative">
       {/* Background glow */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Hero Strip */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-panel relative rounded-2xl p-8 border border-white/10 bg-gradient-to-r from-blue-900/20 to-purple-900/10 overflow-hidden flex flex-col md:flex-row justify-between items-center gap-6"
+        className="relative rounded-3xl p-10 border border-white/5 bg-gradient-to-br from-zinc-900 to-zinc-950 overflow-hidden flex flex-col md:flex-row justify-between items-center gap-8"
       >
-        <div className="relative z-10">
-          <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Welcome back, Vikas.</h1>
-          <p className="text-zinc-400">You have {stats.highRiskFlags} high-risk clauses pending review across your active contracts.</p>
+        <div className="absolute top-0 right-0 p-8 opacity-10">
+          <Sparkles className="h-32 w-32 text-blue-500" />
         </div>
+        
+        <div className="relative z-10 space-y-3">
+          <h1 className="text-4xl font-extrabold tracking-tight text-white">Your Workspace</h1>
+          <p className="text-zinc-400 text-lg max-w-xl">
+            {activeCount > 0 
+              ? `You've analyzed ${activeCount} contracts. ${highRiskCount > 0 ? `We've flagged ${highRiskCount} as high-risk.` : 'All currently processed documents look stable.'}`
+              : "Welcome to LegalTech AI. Start by uploading your first contract for a deep-dive integrity analysis."}
+          </p>
+        </div>
+        
         <Link
           href="/upload"
-          className="relative z-10 inline-flex items-center gap-2 px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.15)] whitespace-nowrap"
+          className="relative z-10 flex items-center gap-3 px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 whitespace-nowrap group"
         >
-          <Upload className="h-5 w-5" /> Upload Contract
+          <Upload className="h-5 w-5 group-hover:-translate-y-0.5 transition-transform" /> 
+          Analyze New Contract
         </Link>
       </motion.div>
 
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Risk Summary Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-panel p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-zinc-400">High Risk Flags</h3>
-            <AlertCircle className="h-4 w-4 text-red-400" />
-          </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.highRiskFlags}</div>
-          <p className="text-sm text-red-400/80">Requires immediate attention</p>
-        </motion.div>
-
-        {/* Active Contracts Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="glass-panel p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-zinc-400">Active Contracts</h3>
-            <FileText className="h-4 w-4 text-blue-400" />
-          </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.activeContracts}</div>
-          <p className="text-sm text-blue-400/80">Currently in workspace</p>
-        </motion.div>
-
-        {/* Suggested Actions Card */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="glass-panel p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-md"
-        >
-           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium text-zinc-400">Power Trend</h3>
-            <Activity className="h-4 w-4 text-yellow-400" />
-          </div>
-          <div className="text-4xl font-bold text-white mb-2">{stats.averagePowerScore}</div>
-          <p className="text-sm text-yellow-400/80">Average score favors counterparty</p>
-        </motion.div>
+        <StatCard 
+          title="Critical Flags" 
+          value={highRiskCount} 
+          icon={<AlertCircle className="h-5 w-5 text-red-500" />}
+          desc="Requires review"
+          color="red"
+          delay={0.1}
+        />
+        <StatCard 
+          title="Active Scans" 
+          value={activeCount} 
+          icon={<FileText className="h-5 w-5 text-blue-500" />}
+          desc="Managed contracts"
+          color="blue"
+          delay={0.2}
+        />
+        <StatCard 
+          title="Power Trend" 
+          value={data?.power_trend?.average_power_score || 0} 
+          icon={<Activity className="h-5 w-5 text-purple-500" />}
+          desc={data?.power_trend?.trend_description || "Balanced leverage"}
+          color="purple"
+          delay={0.3}
+        />
       </div>
 
-      {/* Recent Contracts Table */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="glass-panel border border-white/10 bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden"
-      >
-        <div className="p-6 border-b border-white/10 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-white">Recent Contracts</h2>
-          <Link href="/history" className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
-            View all <ArrowRight className="h-4 w-4" />
+      {/* Contracts Section */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <ClockIcon className="h-5 w-5 text-zinc-500" />
+            Recent Analysis
+          </h2>
+          <Link href="/history" className="text-sm font-semibold text-zinc-500 hover:text-white transition-colors flex items-center gap-1">
+            Browse all <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="divide-y divide-white/5">
-          {recentContracts.map((contract, index) => (
-            <Link href={`/scan/${contract.id}`} key={contract.id}>
-              <div className="p-4 sm:px-6 hover:bg-white/5 transition-colors flex items-center justify-between group cursor-pointer">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                    <FileText className="h-5 w-5 text-zinc-400 group-hover:text-blue-400 transition-colors" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-zinc-200 group-hover:text-white transition-colors">{contract.name}</h4>
-                    <div className="flex items-center gap-3 text-sm text-zinc-500 mt-1">
-                      <span className="bg-white/10 px-2 py-0.5 rounded text-xs">{contract.type}</span>
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {contract.date}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-right hidden sm:block">
-                    <div className="text-sm font-medium text-white">Score: {contract.riskScore}</div>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                    contract.verdict === 'SAFE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                    contract.verdict === 'REVIEW' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
-                    'bg-red-500/10 text-red-400 border-red-500/20'
-                  }`}>
-                    {contract.verdict}
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </motion.div>
+
+        {activeCount > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {data?.contracts.map((contract, i) => (
+              <ContractCard key={contract.id} contract={contract} index={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20 border border-dashed border-white/10 rounded-3xl bg-white/[0.01]">
+             <FileText className="h-12 w-12 text-zinc-700 mb-4" />
+             <p className="text-zinc-500 font-medium">No contracts analyzed yet.</p>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+function StatCard({ title, value, icon, desc, color, delay }: any) {
+  const colors: any = {
+    red: "bg-red-500/10 text-red-500 border-red-500/10",
+    blue: "bg-blue-500/10 text-blue-500 border-blue-500/10",
+    purple: "bg-purple-500/10 text-purple-500 border-purple-500/10",
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className="p-8 rounded-3xl border border-white/5 bg-zinc-900/50 backdrop-blur-sm space-y-4"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold uppercase tracking-widest text-zinc-500">{title}</span>
+        <div className={`p-2 rounded-xl ${colors[color]}`}>
+          {icon}
+        </div>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <span className="text-5xl font-black text-white">{value}</span>
+      </div>
+      <p className="text-sm font-medium text-zinc-400">{desc}</p>
+    </motion.div>
+  );
+}
+
+function ClockIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   );
 }
