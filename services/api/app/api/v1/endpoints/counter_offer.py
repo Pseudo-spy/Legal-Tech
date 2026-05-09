@@ -16,7 +16,7 @@ from app.models.contract import Contract
 from app.models.counter_offer import CounterOffer
 from sqlalchemy import select
 
-from celery_app import app as celery_app
+from app.core.celery import celery_app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

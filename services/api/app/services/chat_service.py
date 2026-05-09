@@ -9,7 +9,7 @@ from typing import List, Dict, Any, AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.repositories.contract_repo import ContractRepository
+from app.repositories import contract_repo
 from app.models.contract import Contract
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,13 @@ async def verify_contract_and_get_id(
     """
     try:
         contract_id = UUID(contract_id_str)
+        user_uuid = UUID(user_id)
     except ValueError:
         return None
 
-    repo = ContractRepository(db)
-    contract = await repo.get_by_id(contract_id)
+    contract = await contract_repo.get_contract_by_id(db, contract_id, user_uuid)
 
-    if not contract or str(contract.user_id) != user_id:
+    if not contract:
         return None
 
     return contract_id
