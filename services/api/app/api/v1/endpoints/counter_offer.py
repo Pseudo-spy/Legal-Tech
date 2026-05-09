@@ -9,14 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 import logging
 
-from app.api.deps import get_current_user, get_db
-from app.models.user import User
-from app.models.clause import Clause
-from app.models.contract import Contract
-from app.models.counter_offer import CounterOffer
+from services.api.app.api.deps import get_current_user, get_db
+from services.api.app.models.user import User
+from services.api.app.models.clause import Clause
+from services.api.app.models.contract import Contract
+from services.api.app.models.counter_offer import CounterOffer
 from sqlalchemy import select
 
-from app.core.celery import celery_app
+from services.api.app.core.celery import celery_app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

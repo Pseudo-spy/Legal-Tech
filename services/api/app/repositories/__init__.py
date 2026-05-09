@@ -1,20 +1,20 @@
 """Database repositories for query functions."""
 
-from app.repositories.user_repo import (
+from services.api.app.repositories.user_repo import (
     create_user,
     get_user_by_id,
     get_user_by_clerk_id,
     update_user,
     delete_user,
 )
-from app.repositories.contract_repo import (
+from services.api.app.repositories.contract_repo import (
     create_contract,
     get_contract_by_id,
     get_all_contracts_by_user_id,
     update_contract,
     delete_contract,
 )
-from app.repositories.clause_repo import (
+from services.api.app.repositories.clause_repo import (
     create_clause,
     get_clause_by_id,
     get_all_clauses_by_contract_id,
@@ -22,7 +22,7 @@ from app.repositories.clause_repo import (
     update_clause,
     delete_clause,
 )
-from app.repositories.scan_job_repo import (
+from services.api.app.repositories.scan_job_repo import (
     create_scan_job,
     get_scan_job_by_id,
     get_scan_jobs_by_contract_id,
@@ -31,7 +31,7 @@ from app.repositories.scan_job_repo import (
     update_error,
     delete_scan_job,
 )
-from app.repositories.report_repo import (
+from services.api.app.repositories.report_repo import (
     create_report,
     get_report_by_id,
     get_report_by_share_uuid,
@@ -39,7 +39,7 @@ from app.repositories.report_repo import (
     delete_report,
     delete_expired_reports,
 )
-from app.repositories.precedent_repo import (
+from services.api.app.repositories.precedent_repo import (
     create_precedent_match,
     get_precedent_match_by_id,
     get_precedent_matches_by_clause_id,

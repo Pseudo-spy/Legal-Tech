@@ -12,8 +12,16 @@ from typing import List, Dict, Any, AsyncGenerator, Optional
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.vectorstores import PGVector
 from langchain_community.embeddings import SentenceTransformerEmbeddings
+<<<<<<< HEAD
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
+=======
+from langchain_community.chat_models import (
+    ChatOpenAI,
+)  # Using OpenRouter via OpenAI-compatible API
+
+from app.models.openrouter_client import OpenRouterClient
+>>>>>>> e3639e82fabde64b4c15a75b113df35b38d4ae2d
 
 logger = logging.getLogger(__name__)
 

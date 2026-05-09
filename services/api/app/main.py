@@ -1,13 +1,27 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.core.config import settings
-from app.api.v1.router import api_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from services.api.app.core.config import settings
+from services.api.app.api.v1.router import api_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from services.api.app.db.base import Base  # noqa: F401
+    from services.api.app.models import (  # noqa: F401
+        User,
+        Contract,
+        Clause,
+        ScanJob,
+        AnalysisResult,
+        CounterOffer,
+        PrecedentMatch,
+        Report,
+        Embedding,
+    )
+
     yield
 
 
@@ -21,7 +35,6 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    # allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

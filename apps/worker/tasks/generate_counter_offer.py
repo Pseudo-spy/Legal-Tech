@@ -11,11 +11,11 @@ from typing import Dict, Any
 from celery import Task
 from celery.utils.log import get_task_logger
 
-from celery_app import app
-from app.db.session import SessionLocal
-from app.models.clause import Clause
-from app.models.counter_offer import CounterOffer
-from app.repositories.clause_repo import get_clause_by_id
+from apps.worker.celery_app import celery_app as app
+from services.api.app.db.session import SessionLocal
+from services.api.app.models.clause import Clause
+from services.api.app.models.counter_offer import CounterOffer
+from services.api.app.repositories.clause_repo import get_clause_by_id
 
 logger = get_task_logger(__name__)
 
@@ -33,7 +33,7 @@ async def _fetch_clause_data(clause_id: UUID) -> Dict[str, Any] | None:
             return None
 
         # Get contract for contract_type
-        from app.models.contract import Contract
+        from services.api.app.models.contract import Contract
         from sqlalchemy import select
 
         result = await db.execute(
@@ -60,7 +60,7 @@ async def _save_counter_offer(clause_id: UUID, result: Dict[str, Any]) -> None:
     async with SessionLocal() as db:
         # Check if already exists
         from sqlalchemy import select
-        from app.models.counter_offer import CounterOffer
+        from services.api.app.models.counter_offer import CounterOffer
 
         existing = await db.execute(
             select(CounterOffer).where(CounterOffer.clause_id == clause_id)

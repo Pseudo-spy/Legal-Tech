@@ -8,10 +8,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any
 
-from app.api.deps import get_current_user, get_db
-from app.models.user import User
+from services.api.app.api.deps import get_current_user, get_db
+from services.api.app.models.user import User
 
-from app.services.chat_service import (
+from services.api.app.services.chat_service import (
     verify_contract_and_get_id,
     check_embeddings_exist,
     stream_chat_response,

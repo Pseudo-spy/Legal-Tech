@@ -11,11 +11,11 @@ from typing import Dict, Any, List
 from celery import Task
 from celery.utils.log import get_task_logger
 
-from celery_app import app
-from app.db.session import SessionLocal
-from app.models.clause import Clause
-from app.models.analysis_result import AnalysisResult
-from app.models.contract import Contract
+from apps.worker.celery_app import celery_app as app
+from services.api.app.db.session import SessionLocal
+from services.api.app.models.clause import Clause
+from services.api.app.models.analysis_result import AnalysisResult
+from services.api.app.models.contract import Contract
 
 logger = get_task_logger(__name__)
 
@@ -165,7 +165,7 @@ def translate_results_task(
         logger.info("Translating results to %s", target_language)
 
         # Translate all texts in batch
-        from services.ai.app.multilingual.translator import translate_batch
+        from app.multilingual.translator import translate_batch
 
         # Collect all texts to translate
         texts_to_translate = []

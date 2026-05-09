@@ -1,8 +1,20 @@
-from celery import Celery
-from dotenv import load_dotenv
-import os
+from __future__ import annotations
 
-load_dotenv()
+import sys as _sys
+from pathlib import Path as _Path
+from dotenv import load_dotenv as _load_dotenv
+
+_root = _Path(__file__).resolve().parents[2]
+_api_path = str(_root / "services" / "api")
+_ai_path = str(_root / "services" / "ai")
+for _p in (str(_root), _api_path, _ai_path):
+    if _p not in _sys.path:
+        _sys.path.insert(0, _p)
+
+_load_dotenv()
+
+from celery import Celery
+import os
 
 redis_url = os.getenv("REDIS_URL", "rediss://localhost:6379")
 
@@ -28,7 +40,7 @@ app.conf.update(
     beat_schedule={
         "cleanup-expired-reports-hourly": {
             "task": "cleanup_expired_reports",
-            "schedule": 3600.0, # Hourly
+            "schedule": 3600.0,
         },
     },
 )

@@ -26,5 +26,9 @@ torch==2.4.1
 transformers==4.44.2
 deep-translator==1.11.4
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> e3639e82fabde64b4c15a75b113df35b38d4ae2d
 langchain==0.3.13
 langchain-community==0.3.13

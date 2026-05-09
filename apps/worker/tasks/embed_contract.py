@@ -11,9 +11,9 @@ from typing import List, Dict, Any
 from celery import Task
 from celery.utils.log import get_task_logger
 
-from celery_app import app
-from app.db.session import SessionLocal
-from app.models.contract import Contract
+from apps.worker.celery_app import celery_app as app
+from services.api.app.db.session import SessionLocal
+from services.api.app.models.contract import Contract
 
 logger = get_task_logger(__name__)
 
@@ -117,8 +117,8 @@ def embed_contract_task(self, contract_id_str: str) -> Dict[str, Any]:
         logger.info("Embedding contract with %d characters", len(contract_text))
 
         # Chunk and embed
-        from services.ai.app.utils.chunk_splitter import split_into_chunks
-        from services.ai.app.rag.embedding_service import chunk_and_embed
+        from app.utils.chunk_splitter import split_into_chunks
+        from app.rag.embedding_service import chunk_and_embed
 
         chunks = split_into_chunks(contract_text)
         chunks_data = chunk_and_embed(contract_text)

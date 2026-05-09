@@ -126,6 +126,16 @@ def translate_batch(
         return texts
 
 
+def translate_to_english(text: str, source_lang: str) -> str:
+    """Translate text to English."""
+    return translate_text(text, source_lang, "en")
+
+
+def translate_from_english(text: str, target_lang: str) -> str:
+    """Translate text from English to target language."""
+    return translate_text(text, "en", target_lang)
+
+
 def _apply_legal_glossary(text: str, target_lang: str) -> str:
     """Apply legal glossary replacements to translated text."""
     glossary = _get_glossary()

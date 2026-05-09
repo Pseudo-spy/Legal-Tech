@@ -4,8 +4,8 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select, join
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.scan_job import ScanJob
-from app.models.contract import Contract
+from services.api.app.models.scan_job import ScanJob
+from services.api.app.models.contract import Contract
 
 
 async def create_scan_job(
@@ -135,5 +135,10 @@ class ScanJobRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, job_id: UUID, user_id: Optional[UUID] = None) -> Optional[ScanJob]:
+    async def get_by_id(
+        self, job_id: UUID, user_id: Optional[UUID] = None
+    ) -> Optional[ScanJob]:
         return await get_scan_job_by_id(self.session, job_id, user_id)
+
+    async def get_by_contract_id(self, contract_id: UUID) -> Optional[ScanJob]:
+        return await get_scan_jobs_by_contract_id(self.session, contract_id, limit=1)  # noqa: F821

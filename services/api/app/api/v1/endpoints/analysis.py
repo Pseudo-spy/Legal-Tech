@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from app.db.session import get_async_session
-from app.core.security import get_current_user_id
-from app.repositories import contract_repo, scan_job_repo, user_repo
-from app.schemas.scan_job import ScanResponse, ScanStatus
-from app.core.celery import celery_app
+from services.api.app.db.session import get_async_session
+from services.api.app.core.security import get_current_user_id
+from services.api.app.repositories import contract_repo, scan_job_repo, user_repo
+from services.api.app.schemas.scan_job import ScanResponse, ScanStatus
+from services.api.app.core.celery import celery_app
 
 router = APIRouter()
 
@@ -31,31 +31,31 @@ async def trigger_scan(
     contract = await contract_repo.get_contract_by_id(db, contractId)
     if not contract:
         raise HTTPException(status_code=404, detail="Contract not found")
-    
+
     # 3. Verify ownership
     if contract.user_id != user.id:
         raise HTTPException(status_code=403, detail="Unauthorized access to contract")
 
     # 4. Check for existing scan jobs
     jobs = await scan_job_repo.get_scan_jobs_by_contract_id(db, contract.id, user.id)
-    
+
     if jobs:
         latest_job = jobs[0]  # Ordered by created_at desc
-        
+
         if latest_job.status == "complete":
             return ScanResponse(
                 job_id=latest_job.id,
                 contract_id=contract.id,
                 status=ScanStatus.COMPLETE,
-                progress_pct=100.0
+                progress_pct=100.0,
             )
-        
+
         if latest_job.status == "processing":
             return ScanResponse(
                 job_id=latest_job.id,
                 contract_id=contract.id,
                 status=ScanStatus.PROCESSING,
-                progress_pct=latest_job.progress_pct
+                progress_pct=latest_job.progress_pct,
             )
 
     # 4. If no job or failed job, create/reset and trigger
@@ -67,14 +67,18 @@ async def trigger_scan(
     # Trigger Celery task
     celery_app.send_task(
         "apps.worker.tasks.process_contract.process_contract",
-        args=[str(contract.id), str(contract.file_ref), None], # Encryption key handled if available
+        args=[
+            str(contract.id),
+            str(contract.file_ref),
+            None,
+        ],  # Encryption key handled if available
     )
 
     return ScanResponse(
         job_id=new_job.id,
         contract_id=contract.id,
         status=ScanStatus.QUEUED,
-        progress_pct=0.0
+        progress_pct=0.0,
     )
 
 
@@ -97,7 +101,7 @@ async def get_scan_status(
     job = await scan_job_repo.get_scan_job_by_id(db, jobId)
     if not job:
         raise HTTPException(status_code=404, detail="Scan job not found")
-    
+
     # 3. Verify ownership (via contract)
     contract = await contract_repo.get_contract_by_id(db, job.contract_id)
     if not contract or contract.user_id != user.id:
@@ -108,5 +112,5 @@ async def get_scan_status(
         contract_id=job.contract_id,
         status=job.status,
         progress_pct=float(job.progress_pct),
-        error_message=job.error_message
+        error_message=job.error_message,
     )

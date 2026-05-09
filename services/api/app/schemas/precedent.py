@@ -11,15 +11,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from .response import EnforcementLikelihood
+from services.api.app.schemas.response import EnforcementLikelihood
 
 
 # ---------------------------------------------------------------------------
 # Sub-models
 # ---------------------------------------------------------------------------
 
+
 class CaseReference(BaseModel):
     """A single cited court case."""
+
     name: str
     year: int = Field(..., ge=1800, le=2100)
     jurisdiction: str
@@ -30,8 +32,10 @@ class CaseReference(BaseModel):
 # Main response model
 # ---------------------------------------------------------------------------
 
+
 class PrecedentMatch(BaseModel):
     """Legal precedent result for a HIGH-risk clause (PRD Feature 9)."""
+
     clause_id: UUID
 
     precedent_summary: str = Field(
@@ -40,7 +44,9 @@ class PrecedentMatch(BaseModel):
     )
     enforcement_likelihood: EnforcementLikelihood
     confidence_score: int = Field(
-        ..., ge=0, le=100,
+        ...,
+        ge=0,
+        le=100,
         description="0-100 score: RAG retrieval similarity × LLM self-rated confidence",
     )
 
