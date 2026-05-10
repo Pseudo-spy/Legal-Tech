@@ -37,7 +37,7 @@ export interface Clause {
   confidence: number;
   headline?: string | null;
   scenario?: string | null;
-  probability?: "Low" | "Medium" | "High";
+  probability?: "Low" | "Medium" | "High" | null;
   similar_case?: string | null;
 }
 
