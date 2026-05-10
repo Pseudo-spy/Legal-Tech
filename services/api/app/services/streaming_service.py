@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import redis
 
-from services.api.app.core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

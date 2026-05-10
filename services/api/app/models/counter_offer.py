@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, DateTime, func, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from services.api.app.db.base import Base
+from app.db.base import Base
 
 
 class CounterOffer(Base):

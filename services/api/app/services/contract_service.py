@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
-from services.api.app.repositories import contract_repo, scan_job_repo, user_repo
-from services.api.app.schemas.contract import ContractCreate
-from services.api.app.schemas.scan_job import ScanResponse, ScanStatus
+from app.repositories import contract_repo, scan_job_repo, user_repo
+from app.schemas.contract import ContractCreate
+from app.schemas.scan_job import ScanResponse, ScanStatus
 from typing import Tuple, Optional
 from fastapi import HTTPException
 

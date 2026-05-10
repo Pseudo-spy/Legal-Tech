@@ -4,8 +4,8 @@ from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.api.app.models.report import Report
-from services.api.app.models.contract import Contract
+from app.models.report import Report
+from app.models.contract import Contract
 
 
 async def create_report_record(

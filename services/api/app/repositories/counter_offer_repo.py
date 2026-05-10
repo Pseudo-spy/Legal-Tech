@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.models.counter_offer import CounterOffer
+from app.models.counter_offer import CounterOffer
 
 
 async def create_counter_offer(

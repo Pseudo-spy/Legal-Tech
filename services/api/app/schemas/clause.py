@@ -9,7 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from services.api.app.schemas.response import (
+from app.schemas.response import (
     RiskLevel,
     ImpactSeverity,
     Likelihood,

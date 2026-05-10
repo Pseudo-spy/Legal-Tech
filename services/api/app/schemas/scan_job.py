@@ -11,7 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from services.api.app.schemas.response import ContractType
+from app.schemas.response import ContractType
 
 
 # ---------------------------------------------------------------------------

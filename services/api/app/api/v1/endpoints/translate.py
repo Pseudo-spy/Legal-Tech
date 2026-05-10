@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
 
-from services.api.app.api.deps import get_current_user, get_db
-from services.api.app.models.user import User
-from services.api.app.models.contract import Contract
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
+from app.models.contract import Contract
 from sqlalchemy import select
 
-from services.api.app.core.celery import celery_app
+from app.core.celery import celery_app
 
 router = APIRouter()
 logger = __import__("logging").getLogger(__name__)

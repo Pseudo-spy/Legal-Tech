@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 import os
 
-from services.api.app.db.session import get_async_session
-from services.api.app.core.security import get_current_user_id
-from services.api.app.repositories import contract_repo, user_repo
-from services.api.app.services import report_service
-from services.api.app.core.celery import celery_app
+from app.db.session import get_async_session
+from app.core.security import get_current_user_id
+from app.repositories import contract_repo, user_repo
+from app.services import report_service
+from app.core.celery import celery_app
 
 router = APIRouter()
 
@@ -127,7 +127,7 @@ async def get_shared_report(
 
     if not report:
         # Check if it exists but is expired
-        from services.api.app.repositories import report_repo
+        from app.repositories import report_repo
 
         expired_report = await report_repo.get_report_by_share_uuid(db, shareUuid)
         if expired_report:

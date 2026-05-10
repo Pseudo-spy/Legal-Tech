@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
-from services.api.app.db.base import Base
+from app.db.base import Base
 
 
 class User(Base):

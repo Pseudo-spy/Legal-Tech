@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.db.session import get_async_session
-from services.api.app.core.security import get_current_user_id
-from services.api.app.core.rate_limit import check_upload_limit
-from services.api.app.schemas.contract import ContractCreate
-from services.api.app.schemas.scan_job import ScanResponse
-from services.api.app.services import contract_service
-from services.api.app.core.celery import celery_app
+from app.db.session import get_async_session
+from app.core.security import get_current_user_id
+from app.core.rate_limit import check_upload_limit
+from app.schemas.contract import ContractCreate
+from app.schemas.scan_job import ScanResponse
+from app.services import contract_service
+from app.core.celery import celery_app
 
 router = APIRouter()
 

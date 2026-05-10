@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.models.clause import Clause
+from app.models.clause import Clause
 
 
 async def create_clause(

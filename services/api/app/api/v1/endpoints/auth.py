@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, status
 from svix.webhooks import Webhook, WebhookVerificationError
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.core.config import settings
-from services.api.app.db.session import get_async_session
-from services.api.app.repositories import user_repo
+from app.core.config import settings
+from app.db.session import get_async_session
+from app.repositories import user_repo
 import logging
 
 router = APIRouter()

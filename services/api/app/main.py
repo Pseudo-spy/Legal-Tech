@@ -3,14 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from services.api.app.core.config import settings
-from services.api.app.api.v1.router import api_router
+from app.core.config import settings
+from app.api.v1.router import api_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from services.api.app.db.base import Base  # noqa: F401
-    from services.api.app.models import (  # noqa: F401
+    from app.db.base import Base  # noqa: F401
+    from app.models import (  # noqa: F401
         User,
         Contract,
         Clause,

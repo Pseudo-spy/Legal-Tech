@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.models.contract import Contract
+from app.models.contract import Contract
 
 
 async def create_contract(

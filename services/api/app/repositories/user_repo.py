@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.api.app.models.user import User
+from app.models.user import User
 
 
 async def create_user(

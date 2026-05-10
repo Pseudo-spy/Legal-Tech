@@ -5,7 +5,7 @@ from jose import jwt, jwk
 from jose.utils import base64url_decode
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from services.api.app.core.config import settings
+from app.core.config import settings
 
 # Security scheme for FastAPI
 # We set auto_error=False to manually handle missing credentials with a 401 error

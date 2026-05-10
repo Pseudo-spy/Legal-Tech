@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from uuid import UUID
 
-from services.api.app.api.deps import get_current_user, get_db
-from services.api.app.models.user import User
-from services.api.app.models.contract import Contract
-from services.api.app.models.analysis_result import AnalysisResult
+from app.api.deps import get_current_user, get_db
+from app.models.user import User
+from app.models.contract import Contract
+from app.models.analysis_result import AnalysisResult
 from sqlalchemy import select
 
 router = APIRouter()

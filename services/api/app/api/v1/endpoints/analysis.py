@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-from services.api.app.db.session import get_async_session
-from services.api.app.core.security import get_current_user_id
-from services.api.app.repositories import contract_repo, scan_job_repo, user_repo
-from services.api.app.schemas.scan_job import ScanResponse, ScanStatus
-from services.api.app.core.celery import celery_app
+from app.db.session import get_async_session
+from app.core.security import get_current_user_id
+from app.repositories import contract_repo, scan_job_repo, user_repo
+from app.schemas.scan_job import ScanResponse, ScanStatus
+from app.core.celery import celery_app
 
 router = APIRouter()
 
