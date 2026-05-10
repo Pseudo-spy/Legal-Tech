@@ -6,11 +6,11 @@ Implements STEP 7.2: Returns power asymmetry analysis for a completed scan.
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 from uuid import UUID
 
-from app.api.deps import get_current_user, get_db
-from app.models.user import User
+from app.db.session import get_async_session
+from app.core.security import get_current_user_id
+from app.repositories import user_repo
 from app.models.contract import Contract
 from app.models.analysis_result import AnalysisResult
 from sqlalchemy import select
@@ -21,16 +21,23 @@ router = APIRouter()
 @router.get("/{contract_id}")
 async def get_power_analysis(
     contract_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_session),
+    user_id: str = Depends(get_current_user_id),
 ):
     """
     Returns the power asymmetry analysis for a contract.
-
-    - Verifies JWT and ownership
-    - Fetches power analysis from analysis_results table
-    - Returns 404 if scan not complete or no power analysis exists
     """
+    # Auto-create user if not exists
+    user = await user_repo.get_user_by_clerk_id(db, user_id)
+    if not user:
+        user = await user_repo.create_user(
+            session=db,
+            clerk_user_id=user_id,
+            email=f"{user_id}@placeholder.local",
+        )
+        await db.commit()
+        await db.refresh(user)
+
     try:
         contract_uuid = UUID(contract_id)
     except ValueError:
@@ -41,7 +48,7 @@ async def get_power_analysis(
     # Verify contract exists and belongs to user
     result = await db.execute(
         select(Contract).where(
-            (Contract.id == contract_uuid) & (Contract.user_id == current_user.id)
+            (Contract.id == contract_uuid) & (Contract.user_id == user.id)
         )
     )
     contract = result.scalars().first()
@@ -71,8 +78,10 @@ async def get_power_analysis(
             "contract_id": str(analysis.contract_id),
             "power_score": analysis.power_score or 0,
             "power_label": analysis.power_label or "Unknown",
-            "key_imbalances": analysis.leverage_points
-            or [],  # Reusing leverage_points field
+            "key_imbalances": [
+                {"clause": lp, "why": "Power asymmetry detected", "score": analysis.power_score or 0}
+                for lp in (analysis.leverage_points or [])
+            ],
             "leverage_points": analysis.leverage_points or [],
         },
     )

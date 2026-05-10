@@ -66,11 +66,13 @@ export function useApiClient() {
   const getClauses = useCallback((contractId: string) => 
     request<Clause[]>(`/api/v1/contracts/${contractId}/clauses`), [request]);
 
+  const getSummary = useCallback(async (contractId: string) => {
+    const response = await request<{ summary: SummaryResult }>(`/api/v1/summary/${contractId}`);
+    return response.summary;
+  }, [request]);
+
   const getAnalysis = useCallback((contractId: string) => 
     request<AnalysisResult>(`/api/v1/analysis/${contractId}`), [request]);
-
-  const getSummary = useCallback((contractId: string) => 
-    request<SummaryResult>(`/api/v1/summary/${contractId}`), [request]);
 
   const getPower = useCallback((contractId: string) => 
     request<PowerResult>(`/api/v1/power/${contractId}`), [request]);

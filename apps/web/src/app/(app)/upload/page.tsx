@@ -24,6 +24,8 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
 
+  const [currentEncryptionKey, setCurrentEncryptionKey] = useState<string | undefined>(undefined);
+
   const { startUpload, isUploading } = useUploadThing("contractUploader", {
     onUploadProgress: (progress) => {
       setUploadProgress(progress);
@@ -31,7 +33,7 @@ export default function UploadPage() {
     onClientUploadComplete: async (res: UploadThingFile[]) => {
       if (res && res[0]) {
         setUploadedFileUrl(res[0].ufsUrl);
-        await callBackendAPI(res[0].ufsUrl);
+        await callBackendAPI(res[0].ufsUrl, currentEncryptionKey);
       }
     },
     onUploadError: (error) => {
@@ -40,7 +42,7 @@ export default function UploadPage() {
     },
   });
 
-  const callBackendAPI = async (fileUrl: string) => {
+  const callBackendAPI = async (fileUrl: string, encryptionKey?: string) => {
     if (!selectedFile) return;
     
     setUploadPhase("processing");
@@ -53,7 +55,7 @@ export default function UploadPage() {
         selectedFile.name,
         fileType,
         selectedFile.size,
-        encryptionKeyHex || undefined
+        encryptionKey || undefined
       );
       
       router.push(`/scan/${response.job_id}`);
@@ -107,23 +109,14 @@ export default function UploadPage() {
   };
 
   const startUploadFlow = async (file: File) => {
-    setUploadPhase("encrypting");
+    setUploadPhase("uploading");
     setUploadProgress(0);
     
     try {
-      const result = await encrypt(file);
-      if (!result) {
-        throw new Error(encryptionError || "Encryption failed");
-      }
-      
-      const hexKey = await exportKeyAsHex(result.key);
-      setEncryptionKeyHex(hexKey);
-      
-      setUploadPhase("uploading");
-      setUploadProgress(10);
-      
-      const fileToUpload = new File([result.blob], file.name, { type: "application/octet-stream" });
-      await startUpload([fileToUpload]);
+      // Upload WITHOUT encryption - backend will parse directly
+      setCurrentEncryptionKey(undefined);
+      setUploadProgress(20);
+      await startUpload([file]);
       
     } catch (err) {
       console.error("Upload flow error:", err);

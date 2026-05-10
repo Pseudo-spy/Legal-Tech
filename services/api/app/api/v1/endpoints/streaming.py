@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.repositories.scan_job_repo import ScanJobRepository
 from app.core.config import settings
+from app.core.security import get_current_user_from_query
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -149,9 +150,12 @@ async def _sse_generator(
 async def stream_scan_results(
     job_id: str,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    token: str = None,
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
+    # Validate token from query param
+    user_id = await get_current_user_from_query(token)
+    current_user_id = user_id
     """
     Opens a persistent SSE connection for ``job_id``.
 
@@ -173,14 +177,14 @@ async def stream_scan_results(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
         )
-    if str(job.user_id) != str(current_user.id):
+    if str(job.user_id) != str(current_user_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
     generator = _sse_generator(
         job_id=job_id,
-        user_id=str(current_user.id),
+        user_id=str(current_user_id),
         db=db,
     )
 

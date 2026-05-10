@@ -123,3 +123,23 @@ async def get_current_user_id(
         raise HTTPException(status_code=401, detail="Token missing subject claim")
 
     return user_id
+
+
+async def get_current_user_from_query(token: str = None) -> str:
+    """
+    Get user ID from token passed as query parameter (for SSE streaming).
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing token",
+        )
+    
+    try:
+        payload = await verify_clerk_token(token)
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Token missing subject claim")
+        return user_id
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")

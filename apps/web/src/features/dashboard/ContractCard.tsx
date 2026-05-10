@@ -64,15 +64,6 @@ export function ContractCard({ contract, index }: ContractCardProps) {
               </div>
             )}
             <div className="flex items-center gap-2">
-              {isComplete && (
-                <Link
-                  href={`/chat/${contract.id}`}
-                  className="p-1 rounded-md hover:bg-white/10 text-zinc-500 hover:text-white transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Link>
-              )}
               <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-zinc-400 transition-all group-hover:translate-x-0.5" />
             </div>
           </div>
