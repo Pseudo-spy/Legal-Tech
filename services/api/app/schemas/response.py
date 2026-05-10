@@ -16,25 +16,24 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 class RiskLevel(str, Enum):
-    """Risk severity levels for clauses."""
-    CRITICAL = "CRITICAL"
+    """Risk severity levels for clauses (PRD Feature 1)."""
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
-    NONE = "NONE"
+    SAFE = "SAFE"
 
 
 class ContractType(str, Enum):
-    """Types of legal contracts."""
+    """Contract types as defined in PRD Feature 2 (10 exact types)."""
+    EMPLOYMENT = "Employment"
     NDA = "NDA"
-    EMPLOYMENT = "Employment Agreement"
-    SERVICE = "Service Agreement"
-    LEASE = "Lease Agreement"
-    SALES = "Sales Agreement"
-    LICENSE = "License Agreement"
-    PARTNERSHIP = "Partnership Agreement"
-    LOAN = "Loan Agreement"
-    INSURANCE = "Insurance Policy"
+    FREELANCE_SOW = "Freelance/SOW"
+    SAAS_SUBSCRIPTION = "SaaS Subscription"
+    LEASE_RENTAL = "Lease/Rental"
+    PARTNERSHIP = "Partnership"
+    IP_LICENSE = "IP License"
+    LOAN = "Loan"
+    MA = "M&A"
     OTHER = "Other"
 
 
@@ -127,18 +126,48 @@ class ClauseType(str, Enum):
 # Shared Response Models
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# New enums required by PRD Features 4, 9, 11
+# ---------------------------------------------------------------------------
+
+class SignVerdict(str, Enum):
+    """Signing recommendation from the summary card (PRD Feature 4)."""
+    YES_AS_IS = "Yes as-is"
+    YES_WITH_CHANGES = "Yes with changes"
+    NO = "No"
+
+
+class NegotiatingPower(str, Enum):
+    """User's overall negotiating position (PRD Feature 4)."""
+    STRONG = "Strong"
+    MODERATE = "Moderate"
+    WEAK = "Weak"
+
+
+class EnforcementLikelihood(str, Enum):
+    """Likelihood a clause will be enforced as written (PRD Feature 9)."""
+    VERY_LIKELY = "Very Likely"
+    LIKELY = "Likely"
+    UNCERTAIN = "Uncertain"
+    UNLIKELY = "Unlikely"
+
+
+# ---------------------------------------------------------------------------
+# Shared Response Models
+# ---------------------------------------------------------------------------
+
 class ErrorDetail(BaseModel):
-    """Detailed error information."""
+    """Standard error detail — matches reviewer error shape requirement."""
+    error: str
+    detail: str
     code: str
-    message: str
-    field: Optional[str] = None
 
 
 class APIError(BaseModel):
     """Standard API error response."""
     error: str
-    detail: Optional[list[ErrorDetail]] = None
-    request_id: Optional[UUID] = None
+    detail: Optional[str] = None
+    code: Optional[str] = None
 
 
 class HealthResponse(BaseModel):

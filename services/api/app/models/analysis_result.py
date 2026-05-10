@@ -4,12 +4,12 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, DateTime, func, ForeignKey, Integer, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from ..db.base import Base
 
 
 class AnalysisResult(Base):
     """Analysis result table — stores overall scan results per contract."""
-    
+
     __tablename__ = "analysis_results"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -17,20 +17,32 @@ class AnalysisResult(Base):
         ForeignKey("contracts.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
-        index=True
+        index=True,
     )
-    overall_risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0-100
-    should_sign: Mapped[str | None] = mapped_column(String, nullable=True)  # "Yes as-is", "Yes with changes", "No"
-    top_concerns: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Array of strings
-    top_positives: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Array of strings
-    negotiating_power: Mapped[str | None] = mapped_column(String, nullable=True)  # "Strong", "Moderate", "Weak"
-    power_score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # -100 to +100
+    overall_risk_score: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # 0-100
+    should_sign: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )  # "Yes as-is", "Yes with changes", "No"
+    top_concerns: Mapped[list | None] = mapped_column(
+        JSON, nullable=True
+    )  # Array of strings
+    top_positives: Mapped[list | None] = mapped_column(
+        JSON, nullable=True
+    )  # Array of strings
+    negotiating_power: Mapped[str | None] = mapped_column(
+        String, nullable=True
+    )  # "Strong", "Moderate", "Weak"
+    power_score: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # -100 to +100
     power_label: Mapped[str | None] = mapped_column(String, nullable=True)
-    leverage_points: Mapped[list | None] = mapped_column(JSON, nullable=True)  # Array of strings
+    leverage_points: Mapped[list | None] = mapped_column(
+        JSON, nullable=True
+    )  # Array of strings
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationships

@@ -42,6 +42,7 @@ export function useSSE({
   const retriesRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const jobIdRef = useRef<string | null>(null);
+  const tokenRef = useRef(token);
 
   const onClauseRef = useRef(onClause);
   const onProgressRef = useRef(onProgress);
@@ -93,7 +94,7 @@ export function useSSE({
       jobIdRef.current = jobId;
       retriesRef.current = 0;
 
-      const url = `${baseUrl}/v1/scan/${jobId}/stream?token=${encodeURIComponent(token)}`;
+      const url = `${baseUrl}/v1/scan/${jobId}/stream?token=${encodeURIComponent(tokenRef.current)}`;
 
       const es = new EventSource(url);
       esRef.current = es;
@@ -175,7 +176,10 @@ export function useSSE({
   }, [token, baseUrl, closeEventSource, maxRetries, status]);
 
   const connect = useCallback(
-    (jobId: string) => {
+    (jobId: string, token?: string) => {
+      if (token) {
+        tokenRef.current = token;
+      }
       connectFnRef.current(jobId);
     },
     [],

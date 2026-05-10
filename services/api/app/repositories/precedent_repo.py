@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.precedent_match import PrecedentMatch
+from ..models.precedent_match import PrecedentMatch
 
 
 async def create_precedent_match(
@@ -33,9 +33,13 @@ async def create_precedent_match(
     return match
 
 
-async def get_precedent_match_by_id(session: AsyncSession, match_id: UUID) -> Optional[PrecedentMatch]:
+async def get_precedent_match_by_id(
+    session: AsyncSession, match_id: UUID
+) -> Optional[PrecedentMatch]:
     """Get precedent match by ID."""
-    result = await session.execute(select(PrecedentMatch).where(PrecedentMatch.id == match_id))
+    result = await session.execute(
+        select(PrecedentMatch).where(PrecedentMatch.id == match_id)
+    )
     return result.scalars().first()
 
 

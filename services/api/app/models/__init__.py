@@ -1,14 +1,14 @@
 """Database models for LegalTech AI Contract Scanner."""
 
-from app.models.user import User
-from app.models.contract import Contract
-from app.models.clause import Clause
-from app.models.scan_job import ScanJob
-from app.models.analysis_result import AnalysisResult
-from app.models.counter_offer import CounterOffer
-from app.models.precedent_match import PrecedentMatch
-from app.models.report import Report
-from app.models.embedding import Embedding
+from .user import User
+from .contract import Contract
+from .clause import Clause
+from .scan_job import ScanJob
+from .analysis_result import AnalysisResult
+from .counter_offer import CounterOffer
+from .precedent_match import PrecedentMatch
+from .report import Report
+from .embedding import Embedding
 
 __all__ = [
     "User",

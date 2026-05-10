@@ -13,6 +13,7 @@ from app.api.v1.endpoints import (
     chat,
     translate,
     health,
+    dashboard,
 )
 from app.core.security import get_current_user_id
 
@@ -89,4 +90,8 @@ api_router.include_router(
     prefix="/translate",
     tags=["translate"],
     dependencies=protected_dependency,
+)
+
+api_router.include_router(
+    dashboard.router, prefix="/dashboard", tags=["dashboard"], dependencies=protected_dependency
 )

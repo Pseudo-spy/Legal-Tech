@@ -1,28 +1,69 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, AlertCircle, Upload as UploadIcon, CheckCircle2, Loader2, Sparkles, X, ShieldCheck } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { FileText, Upload as UploadIcon, CheckCircle2, Loader2, Sparkles, ShieldCheck, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
+import { useEncryption } from "@/hooks/useEncryption";
+import { useUploadThing, UploadThingFile } from "@/lib/uploadthing";
+import { useApiClient } from "@/lib/api";
+import { exportKeyAsHex } from "@/lib/crypto";
 
-const PROCESSING_STEPS = [
-  "Uploading File",
-  "Parsing Document Structure",
-  "Extracting Text Elements",
-  "Splitting into Clauses",
-  "Detecting Contract Type",
-  "Finding Risky Clauses",
-  "AI Analysis in Progress",
-  "Preparing Results"
-];
+type UploadPhase = "idle" | "encrypting" | "uploading" | "processing" | "complete" | "error";
 
 export default function UploadPage() {
   const router = useRouter();
+  const { key, encrypt, clearKey, error: encryptionError } = useEncryption();
+  const [encryptionKeyHex, setEncryptionKeyHex] = useState<string | null>(null);
+  const apiClient = useApiClient();
   
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<"idle" | "processing" | "complete" | "error">("idle");
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+
+  const [currentEncryptionKey, setCurrentEncryptionKey] = useState<string | undefined>(undefined);
+
+  const { startUpload, isUploading } = useUploadThing("contractUploader", {
+    onUploadProgress: (progress) => {
+      setUploadProgress(progress);
+    },
+    onClientUploadComplete: async (res: UploadThingFile[]) => {
+      if (res && res[0]) {
+        setUploadedFileUrl(res[0].ufsUrl);
+        await callBackendAPI(res[0].ufsUrl, currentEncryptionKey);
+      }
+    },
+    onUploadError: (error) => {
+      setError(`Upload failed: ${error.message}`);
+      setUploadPhase("error");
+    },
+  });
+
+  const callBackendAPI = async (fileUrl: string, encryptionKey?: string) => {
+    if (!selectedFile) return;
+    
+    setUploadPhase("processing");
+    setUploadProgress(0);
+    
+    try {
+      const fileType = selectedFile.name.split('.').pop()?.toLowerCase() || 'pdf';
+      const response = await apiClient.upload(
+        fileUrl,
+        selectedFile.name,
+        fileType,
+        selectedFile.size,
+        encryptionKey || undefined
+      );
+      
+      router.push(`/scan/${response.job_id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start analysis");
+      setUploadPhase("error");
+    }
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -38,44 +79,79 @@ export default function UploadPage() {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      startProcessing(e.dataTransfer.files[0]);
+      validateAndStartUpload(e.dataTransfer.files[0]);
     }
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      startProcessing(e.target.files[0]);
+      validateAndStartUpload(e.target.files[0]);
     }
   }, []);
 
-  const startProcessing = (file: File) => {
+  const validateAndStartUpload = (file: File) => {
+    const validTypes = ['pdf', 'docx'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (!fileExtension || !validTypes.includes(fileExtension)) {
+      setError("Only PDF and DOCX files are accepted");
+      return;
+    }
+    
+    if (file.size > 25 * 1024 * 1024) {
+      setError("File size must be less than 25MB");
+      return;
+    }
+    
     setSelectedFile(file);
-    setStatus("processing");
-    setCurrentStepIndex(0);
+    setError(null);
+    startUploadFlow(file);
   };
 
-  useEffect(() => {
-    if (status === "processing") {
-      if (currentStepIndex < PROCESSING_STEPS.length) {
-        const timer = setTimeout(() => {
-          setCurrentStepIndex(prev => prev + 1);
-        }, 1500); // 1.5 seconds per step
-        return () => clearTimeout(timer);
-      } else {
-        // Once all steps complete, transition to complete state
-        setTimeout(() => setStatus("complete"), 500);
-      }
+  const startUploadFlow = async (file: File) => {
+    setUploadPhase("uploading");
+    setUploadProgress(0);
+    
+    try {
+      // Upload WITHOUT encryption - backend will parse directly
+      setCurrentEncryptionKey(undefined);
+      setUploadProgress(20);
+      await startUpload([file]);
+      
+    } catch (err) {
+      console.error("Upload flow error:", err);
+      setError(err instanceof Error ? err.message : "Failed to process file");
+      setUploadPhase("error");
     }
-  }, [status, currentStepIndex]);
+  };
 
-  const handleContinue = () => {
-    // Navigate to a mock scan id
-    router.push(`/scan/mock-job-123`);
+  const handleReset = () => {
+    setSelectedFile(null);
+    setUploadPhase("idle");
+    setUploadProgress(0);
+    setError(null);
+    setUploadedFileUrl(null);
+    clearKey();
+  };
+
+  const getPhaseLabel = () => {
+    switch (uploadPhase) {
+      case "encrypting": return "Encrypting...";
+      case "uploading": return "Uploading...";
+      case "processing": return "Starting analysis...";
+      default: return "";
+    }
+  };
+
+  const getProgressValue = () => {
+    if (uploadPhase === "encrypting") return 5;
+    if (uploadPhase === "uploading") return 10 + (uploadProgress * 0.8);
+    if (uploadPhase === "processing") return 95;
+    return 0;
   };
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 relative flex flex-col justify-center flex-1 min-h-[70vh]">
-      {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="text-center mb-10 relative z-10">
@@ -84,7 +160,7 @@ export default function UploadPage() {
       </div>
 
       <div className="relative z-10 w-full">
-        {status === "idle" && (
+        {uploadPhase === "idle" && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -101,21 +177,31 @@ export default function UploadPage() {
               id="file-upload" 
               type="file" 
               className="hidden" 
-              accept=".pdf,.docx,.txt"
+              accept=".pdf,.docx"
               onChange={handleFileSelect}
             />
             <div className="h-20 w-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10">
               <UploadIcon className="h-8 w-8 text-blue-400" />
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">Click or drag file to upload</h3>
-            <p className="text-zinc-500 mb-6 text-sm">PDF, DOCX, or TXT up to 25MB</p>
+            <p className="text-zinc-500 mb-6 text-sm">PDF or DOCX up to 25MB</p>
             <div className="flex items-center gap-2 text-xs text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
                <ShieldCheck className="h-3 w-3 text-green-400" /> Encrypted before leaving device
             </div>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-lg"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                {error}
+              </motion.div>
+            )}
           </motion.div>
         )}
 
-        {status === "processing" && (
+        {(uploadPhase === "encrypting" || uploadPhase === "uploading" || uploadPhase === "processing") && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -129,60 +215,54 @@ export default function UploadPage() {
                   <p className="text-zinc-500 text-sm">{(selectedFile?.size ? (selectedFile.size / 1024 / 1024).toFixed(2) : "0.00")} MB</p>
                 </div>
               </div>
-              <Sparkles className="h-6 w-6 text-blue-400 animate-pulse" />
+              {uploadPhase !== "processing" && <Sparkles className="h-6 w-6 text-blue-400 animate-pulse" />}
             </div>
 
-            <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-white/10 before:to-transparent">
-              {PROCESSING_STEPS.map((step, index) => {
-                const isComplete = index < currentStepIndex;
-                const isActive = index === currentStepIndex;
-                const isPending = index > currentStepIndex;
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                {uploadPhase === "encrypting" ? (
+                  <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                ) : uploadPhase === "uploading" || uploadPhase === "processing" ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-400" />
+                ) : null}
+                <span className="text-zinc-300">{getPhaseLabel()}</span>
+              </div>
 
-                return (
-                  <div key={step} className={`relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active`}>
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-black bg-zinc-900 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 relative z-10 mr-4 md:mr-0">
-                      {isComplete ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-400" />
-                      ) : isActive ? (
-                        <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
-                      ) : (
-                        <div className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
-                      )}
-                    </div>
-                    <div className={`w-[calc(100%-3rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg border transition-colors ${
-                      isActive ? 'bg-blue-500/10 border-blue-500/30' : 
-                      isComplete ? 'bg-white/5 border-white/5' : 'bg-transparent border-transparent'
-                    }`}>
-                      <p className={`text-sm font-medium ${
-                        isActive ? 'text-blue-400' : 
-                        isComplete ? 'text-zinc-300' : 'text-zinc-600'
-                      }`}>{step}</p>
-                    </div>
-                  </div>
-                );
-              })}
+              <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                <motion.div 
+                  className="h-full bg-blue-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${getProgressValue()}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-zinc-500 mt-4">
+                <ShieldCheck className="h-3 w-3 text-green-400" />
+                Your document is encrypted before upload
+              </div>
             </div>
           </motion.div>
         )}
 
-        {status === "complete" && (
+        {uploadPhase === "error" && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-panel p-10 rounded-3xl border border-green-500/30 bg-green-500/5 max-w-md mx-auto text-center"
+            className="glass-panel p-10 rounded-3xl border border-red-500/30 bg-red-500/5 max-w-md mx-auto text-center"
           >
-            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
-              <CheckCircle2 className="h-10 w-10 text-green-400" />
+            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="h-10 w-10 text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Analysis Complete</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">Upload Failed</h2>
             <p className="text-zinc-400 mb-8">
-              We've scanned {selectedFile?.name} and found items requiring your attention.
+              {error || "Something went wrong. Please try again."}
             </p>
             <button
-              onClick={handleContinue}
-              className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+              onClick={handleReset}
+              className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all"
             >
-              View Results
+              Try Again
             </button>
           </motion.div>
         )}

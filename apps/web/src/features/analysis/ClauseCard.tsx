@@ -6,13 +6,13 @@ import { motion } from "framer-motion";
 
 interface ClauseCardProps {
   clause: Clause;
+  onCardClick?: (clauseId: string) => void;
 }
 
-export function ClauseCard({ clause }: ClauseCardProps) {
+export function ClauseCard({ clause, onCardClick }: ClauseCardProps) {
   const { selectedClauseId, selectClause } = useClauseStore();
   const isSelected = selectedClauseId === clause.id;
 
-  // Format risk category string (e.g. "ip_assignment" -> "IP Assignment")
   const formatCategory = (category: string) => {
     return category
       .split("_")
@@ -27,6 +27,13 @@ export function ClauseCard({ clause }: ClauseCardProps) {
     SAFE: "ring-2 ring-slate-500 bg-slate-50/50 dark:bg-slate-900/20",
   }[clause.risk_level];
 
+  const handleClick = () => {
+    selectClause(clause.id);
+    if (onCardClick) {
+      onCardClick(clause.id);
+    }
+  };
+
   return (
     <motion.div
       layout
@@ -34,7 +41,8 @@ export function ClauseCard({ clause }: ClauseCardProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -2 }}
-      onClick={() => selectClause(clause.id)}
+      onClick={handleClick}
+      data-clause-id={clause.id}
       className={cn(
         "relative cursor-pointer rounded-xl border bg-card p-5 text-card-foreground shadow-sm transition-all hover:shadow-md",
         isSelected ? selectedRingClass : "hover:border-primary/50"

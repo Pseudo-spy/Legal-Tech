@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.contract import Contract
+from ..models.contract import Contract
 
 
 async def create_contract(
@@ -94,3 +94,15 @@ async def delete_contract(
     await session.delete(contract)
     await session.commit()
     return True
+
+
+class ContractRepository:
+    """Class-based wrapper for contract repository functions."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(
+        self, contract_id: UUID, user_id: Optional[UUID] = None
+    ) -> Optional[Contract]:
+        return await get_contract_by_id(self.session, contract_id, user_id)

@@ -4,7 +4,7 @@ from typing import Optional
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.user import User
+from ..models.user import User
 
 
 async def create_user(
@@ -31,9 +31,13 @@ async def get_user_by_id(session: AsyncSession, user_id: UUID) -> Optional[User]
     return result.scalars().first()
 
 
-async def get_user_by_clerk_id(session: AsyncSession, clerk_user_id: str) -> Optional[User]:
+async def get_user_by_clerk_id(
+    session: AsyncSession, clerk_user_id: str
+) -> Optional[User]:
     """Get user by Clerk user ID."""
-    result = await session.execute(select(User).where(User.clerk_user_id == clerk_user_id))
+    result = await session.execute(
+        select(User).where(User.clerk_user_id == clerk_user_id)
+    )
     return result.scalars().first()
 
 
@@ -89,7 +93,7 @@ async def upsert_user(
             **kwargs,
         )
         session.add(user)
-    
+
     await session.commit()
     await session.refresh(user)
     return user

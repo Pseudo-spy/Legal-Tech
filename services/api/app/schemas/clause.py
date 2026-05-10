@@ -9,7 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from .response import (
+from app.schemas.response import (
     RiskLevel,
     ImpactSeverity,
     Likelihood,
@@ -25,17 +25,20 @@ from .response import (
 # Feature 1: Clause Risk Analysis
 # ---------------------------------------------------------------------------
 
+
 class ClauseRecommendation(BaseModel):
     """Recommendation for clause risk mitigation."""
+
     text: str
 
 
 class ClauseResult(BaseModel):
     """Complete result of clause risk analysis (Feature 1)."""
+
     clause_id: UUID
     position_index: int = Field(..., ge=0)
     text: str
-    
+
     # Risk analysis fields
     risk_level: RiskLevel
     risk_category: str
@@ -44,7 +47,7 @@ class ClauseResult(BaseModel):
     problematic_language: Optional[str] = None
     recommendations: list[ClauseRecommendation] = Field(default_factory=list)
     confidence_score: float = Field(..., ge=0.0, le=1.0)
-    
+
     # Metadata
     model_used: Optional[str] = None
     processing_time_ms: Optional[int] = None
@@ -57,8 +60,10 @@ class ClauseResult(BaseModel):
 # Additional Clause Analysis Results
 # ---------------------------------------------------------------------------
 
+
 class ClauseTypeDetection(BaseModel):
     """Result of clause type detection."""
+
     clause_id: UUID
     position_index: int
     detected_types: list[str] = Field(default_factory=list)
@@ -68,6 +73,7 @@ class ClauseTypeDetection(BaseModel):
 
 class ClauseConsequence(BaseModel):
     """Result of consequence analysis."""
+
     clause_id: UUID
     position_index: int
     immediate_consequences: list[str] = Field(default_factory=list)
@@ -81,6 +87,7 @@ class ClauseConsequence(BaseModel):
 
 class ClauseSummary(BaseModel):
     """Result of clause summarization."""
+
     clause_id: UUID
     position_index: int
     plain_summary: str
@@ -94,6 +101,7 @@ class ClauseSummary(BaseModel):
 
 class ClausePowerAsymmetry(BaseModel):
     """Result of power asymmetry analysis."""
+
     clause_id: UUID
     position_index: int
     has_asymmetry: bool
@@ -106,6 +114,7 @@ class ClausePowerAsymmetry(BaseModel):
 
 class ClauseCounterOffer(BaseModel):
     """Result of counter-offer suggestions."""
+
     clause_id: UUID
     position_index: int
     original_summary: str
@@ -118,6 +127,7 @@ class ClauseCounterOffer(BaseModel):
 
 class ClausePrecedent(BaseModel):
     """Result of precedent search."""
+
     clause_id: UUID
     position_index: int
     relevant_precedents: list[dict] = Field(default_factory=list)  # LLMPrecedentItem
@@ -131,12 +141,14 @@ class ClausePrecedent(BaseModel):
 # Combined Results
 # ---------------------------------------------------------------------------
 
+
 class FullClauseAnalysis(BaseModel):
     """Complete analysis for a single clause."""
+
     clause_id: UUID
     position_index: int
     text: str
-    
+
     # All analysis results
     risk_analysis: Optional[ClauseResult] = None
     type_detection: Optional[ClauseTypeDetection] = None
@@ -145,7 +157,7 @@ class FullClauseAnalysis(BaseModel):
     power_asymmetry: Optional[ClausePowerAsymmetry] = None
     counter_offer: Optional[ClauseCounterOffer] = None
     precedent: Optional[ClausePrecedent] = None
-    
+
     # Overall status
     analysis_complete: bool = False
     errors: list[str] = Field(default_factory=list)

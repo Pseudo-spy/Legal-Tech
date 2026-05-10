@@ -7,6 +7,11 @@ from typing import Tuple, Optional
 from fastapi import HTTPException
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 async def create_contract_and_job(
     db: AsyncSession, clerk_user_id: str, contract_data: ContractCreate
 ) -> Tuple[UUID, UUID, ScanStatus, Optional[str]]:
@@ -14,10 +19,22 @@ async def create_contract_and_job(
     Business logic for creating a contract and its initial scan job.
     Returns: (job_id, contract_id, status, encryption_key)
     """
+    logger.info(f"Processing upload for clerk_user_id: {clerk_user_id}")
+    
     # 0. Look up user by Clerk ID to get internal UUID
     user = await user_repo.get_user_by_clerk_id(db, clerk_user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        logger.info(f"User not found, creating new user: {clerk_user_id}")
+        # Create user if doesn't exist
+        user = await user_repo.create_user(
+            session=db,
+            clerk_user_id=clerk_user_id,
+            email=f"{clerk_user_id}@placeholder.local",
+        )
+        await db.commit()
+        # Refresh to get the created user with ID
+        await db.refresh(user)
+        logger.info(f"Created new user with ID: {user.id}")
 
     user_uuid = user.id
 

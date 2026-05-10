@@ -9,7 +9,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { RiskLevel } from "@/types/clause";
 
-export function ClauseList() {
+interface ClauseListProps {
+  onCardClick?: (clauseId: string) => void;
+}
+
+export function ClauseList({ onCardClick }: ClauseListProps) {
   const { clauses, filter, setFilter } = useClauseStore();
   const { status } = useScanStore();
   
@@ -17,7 +21,7 @@ export function ClauseList() {
     .filter((c) => filter === "ALL" || c.risk_level === filter)
     .sort((a, b) => a.position_index - b.position_index);
 
-  const filterOptions: Array<RiskLevel | "ALL"> = ["ALL", "HIGH", "MEDIUM", "SAFE"];
+  const filterOptions: Array<RiskLevel | "ALL"> = ["ALL", "HIGH", "MEDIUM", "LOW", "SAFE"];
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -48,7 +52,23 @@ export function ClauseList() {
         <div className="flex flex-col gap-4">
           <AnimatePresence mode="popLayout">
             {filteredClauses.map((clause, index) => (
-              <ClauseCard key={clause.id} clause={clause} />
+              <motion.div
+                key={clause.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{
+                  duration: 0.25,
+                  delay: index * 0.05,
+                  ease: "easeOut",
+                }}
+                layout
+              >
+                <ClauseCard
+                  clause={clause}
+                  onCardClick={onCardClick}
+                />
+              </motion.div>
             ))}
           </AnimatePresence>
           {filteredClauses.length === 0 && (

@@ -11,6 +11,9 @@ from .response import (
     Enforceability,
     PrecedentType,
     ClauseType,
+    SignVerdict,
+    NegotiatingPower,
+    EnforcementLikelihood,
     ErrorDetail,
     APIError,
     HealthResponse,
@@ -50,8 +53,16 @@ from .scan_job import (
     ScanResult,
 )
 
+from .power import KeyImbalance, PowerAnalysisResult
+from .precedent import CaseReference, PrecedentMatch
+from .counter_offer import CounterOfferVersion, CounterOfferResult, CounterOfferStatus
+from .summary import SummaryCard, ProsConsItem, ProsConsResult, SummaryResponse
+from .chat import ConversationTurn, ChatRequest, ChatResponse
+from .report import ReportCreate, ReportRead
+from .translation import TranslationRequest, TranslationResponse, SUPPORTED_LANGUAGES
+
 __all__ = [
-    # Enums
+    # ── Enums ──────────────────────────────────────────────────────────────
     "RiskLevel",
     "ContractType",
     "ImpactSeverity",
@@ -63,13 +74,16 @@ __all__ = [
     "PrecedentType",
     "ClauseType",
     "ScanStatus",
-    # Response
+    "SignVerdict",
+    "NegotiatingPower",
+    "EnforcementLikelihood",
+    # ── Shared response ────────────────────────────────────────────────────
     "ErrorDetail",
     "APIError",
     "HealthResponse",
     "PaginationParams",
     "PaginatedResponse",
-    # Clause
+    # ── Clause ─────────────────────────────────────────────────────────────
     "ClauseRecommendation",
     "ClauseResult",
     "ClauseTypeDetection",
@@ -79,14 +93,14 @@ __all__ = [
     "ClauseCounterOffer",
     "ClausePrecedent",
     "FullClauseAnalysis",
-    # Contract
+    # ── Contract ───────────────────────────────────────────────────────────
     "ContractCreate",
     "ContractUpdate",
     "ContractRead",
     "ContractListItem",
     "ContractListResponse",
     "ContractAnalysisSummary",
-    # Scan Job
+    # ── Scan Job ───────────────────────────────────────────────────────────
     "ScanFeatures",
     "ScanRequest",
     "ScanProgress",
@@ -94,4 +108,30 @@ __all__ = [
     "ScanResponse",
     "ScanResultSummary",
     "ScanResult",
-]
+    # ── Power (Feature 5) ──────────────────────────────────────────────────
+    "KeyImbalance",
+    "PowerAnalysisResult",
+    # ── Precedent (Feature 9) ──────────────────────────────────────────────
+    "CaseReference",
+    "PrecedentMatch",
+    # ── Counter-offer (Feature 6) ──────────────────────────────────────────
+    "CounterOfferVersion",
+    "CounterOfferResult",
+    "CounterOfferStatus",
+    # ── Summary + Pros/Cons (Features 4 & 7) ──────────────────────────────
+    "SummaryCard",
+    "ProsConsItem",
+    "ProsConsResult",
+    "SummaryResponse",
+    # ── Chat (Feature 8) ───────────────────────────────────────────────────
+    "ConversationTurn",
+    "ChatRequest",
+    "ChatResponse",
+    # ── Report (Feature 12) ────────────────────────────────────────────────
+    "ReportCreate",
+    "ReportRead",
+    # ── Translation (Feature 11) ───────────────────────────────────────────
+    "TranslationRequest",
+    "TranslationResponse",
+    "SUPPORTED_LANGUAGES",
+]

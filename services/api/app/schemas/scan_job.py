@@ -11,15 +11,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from .response import ContractType
+from app.schemas.response import ContractType
 
 
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class ScanStatus(str, Enum):
     """Status of a scan job."""
+
     QUEUED = "queued"
     PROCESSING = "processing"
     COMPLETE = "complete"
@@ -31,8 +33,10 @@ class ScanStatus(str, Enum):
 # Scan Request
 # ---------------------------------------------------------------------------
 
+
 class ScanFeatures(BaseModel):
     """Features to enable for scanning."""
+
     risk_analysis: bool = True
     type_detection: bool = True
     consequence: bool = True
@@ -44,6 +48,7 @@ class ScanFeatures(BaseModel):
 
 class ScanRequest(BaseModel):
     """Request to scan a contract."""
+
     contract_id: UUID
     features: ScanFeatures = Field(default_factory=ScanFeatures)
     priority: int = Field(default=0, ge=0, le=100)
@@ -54,8 +59,10 @@ class ScanRequest(BaseModel):
 # Scan Response
 # ---------------------------------------------------------------------------
 
+
 class ScanProgress(BaseModel):
     """Progress information for a scan job."""
+
     current_feature: Optional[str] = None
     clauses_processed: int = 0
     total_clauses: int = 0
@@ -64,15 +71,16 @@ class ScanProgress(BaseModel):
 
 class ScanJobStatus(BaseModel):
     """Complete status of a scan job."""
+
     job_id: UUID
     contract_id: UUID
     status: ScanStatus
     progress: ScanProgress = Field(default_factory=ScanProgress)
     error_message: Optional[str] = None
-    
+
     # Results
     summary: Optional[dict] = None
-    
+
     # Timestamps
     queued_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
@@ -86,6 +94,7 @@ class ScanJobStatus(BaseModel):
 
 class ScanResponse(BaseModel):
     """Basic scan response."""
+
     job_id: UUID
     contract_id: UUID
     status: ScanStatus
@@ -100,8 +109,10 @@ class ScanResponse(BaseModel):
 # Scan Result
 # ---------------------------------------------------------------------------
 
+
 class ScanResultSummary(BaseModel):
     """Summary of scan results."""
+
     total_clauses: int = 0
     risk_analysis_count: int = 0
     type_detection_count: int = 0
@@ -114,15 +125,16 @@ class ScanResultSummary(BaseModel):
 
 class ScanResult(BaseModel):
     """Complete scan result."""
+
     job_id: UUID
     contract_id: UUID
     status: ScanStatus
     summary: ScanResultSummary
     error_message: Optional[str] = None
-    
+
     # Results storage
     results: Optional[dict] = None
-    
+
     # Timestamps
     created_at: datetime
     completed_at: Optional[datetime] = None

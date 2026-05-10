@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.repositories.scan_job_repo import ScanJobRepository
 from app.core.config import settings
+from app.core.security import get_current_user_from_query
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 HEARTBEAT_INTERVAL = 15  # seconds
-REDIS_CHANNEL_PREFIX = "scan:job:"
+REDIS_CHANNEL_PREFIX = "scan:"
 
 
 # ---------------------------------------------------------------------------
 # Helper: async SSE generator
 # ---------------------------------------------------------------------------
+
 
 async def _sse_generator(
     job_id: str,
@@ -51,7 +53,7 @@ async def _sse_generator(
     # ── 1. Confirm job is still owned by this user ──────────────────────────
     job = await repo.get_by_id(job_id)
     if not job or str(job.user_id) != user_id:
-        yield "event: error\ndata: {\"detail\": \"Not found\"}\n\n"
+        yield 'event: error\ndata: {"detail": "Not found"}\n\n'
         return
 
     # ── 2. If the job is already complete, stream stored clauses + done ──────
@@ -103,7 +105,9 @@ async def _sse_generator(
                 try:
                     payload = json.loads(raw)
                 except json.JSONDecodeError:
-                    logger.warning("SSE: invalid JSON on channel %s: %r", channel_name, raw)
+                    logger.warning(
+                        "SSE: invalid JSON on channel %s: %r", channel_name, raw
+                    )
                     continue
 
                 msg_type = payload.get("type", "")
@@ -133,6 +137,7 @@ async def _sse_generator(
 # Route
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/scan/{job_id}/stream",
     summary="Stream clause results for a scan job via SSE",
@@ -145,9 +150,12 @@ async def _sse_generator(
 async def stream_scan_results(
     job_id: str,
     request: Request,
-    current_user: User = Depends(get_current_user),
+    token: str = None,
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
+    # Validate token from query param
+    user_id = await get_current_user_from_query(token)
+    current_user_id = user_id
     """
     Opens a persistent SSE connection for ``job_id``.
 
@@ -166,13 +174,17 @@ async def stream_scan_results(
     repo = ScanJobRepository(db)
     job = await repo.get_by_id(job_id)
     if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
-    if str(job.user_id) != str(current_user.id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
+        )
+    if str(job.user_id) != str(current_user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
 
     generator = _sse_generator(
         job_id=job_id,
-        user_id=str(current_user.id),
+        user_id=str(current_user_id),
         db=db,
     )
 
@@ -181,7 +193,7 @@ async def stream_scan_results(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",   # disable Nginx buffering
+            "X-Accel-Buffering": "no",  # disable Nginx buffering
             "Connection": "keep-alive",
         },
     )
