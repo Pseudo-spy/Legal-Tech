@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, DateTime, func, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from pgvector.sqlalchemy import Vector
-from app.db.base import Base
+from ..db.base import Base
 
 
 class Embedding(Base):

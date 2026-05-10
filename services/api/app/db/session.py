@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
+from ..core.config import settings
 
 
 def _get_database_url() -> str:

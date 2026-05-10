@@ -4,7 +4,7 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.precedent_match import PrecedentMatch
+from ..models.precedent_match import PrecedentMatch
 
 
 async def create_precedent_match(
