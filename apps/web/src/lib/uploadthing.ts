@@ -10,6 +10,7 @@ export type UploadThingFile = {
   type: string;
   key: string;
   url: string;
+  ufsUrl: string;
 };
 
 export async function deleteUploadthingFile(fileUrl: string): Promise<boolean> {
