@@ -77,11 +77,7 @@ async def get_summary(
         content={
             "contract_id": str(analysis.contract_id),
             "summary": {
-                "one_liner": analysis.top_concerns[0]
-                if analysis.top_concerns
-                else ""
-                if analysis.top_concerns
-                else "",
+                "one_liner": f"Contract with {len(analysis.top_concerns or [])} key concerns and {len(analysis.top_positives or [])} positives identified",
                 "should_you_sign": analysis.should_sign or "Unknown",
                 "top_3_concerns": analysis.top_concerns or [],
                 "top_2_positives": analysis.top_positives or [],

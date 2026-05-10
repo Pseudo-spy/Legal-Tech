@@ -60,7 +60,7 @@ async def _sse_generator(
     if job.status == "complete":
         clauses = await repo.get_clauses(job_id)
         for clause in clauses:
-            payload = json.dumps({"type": "clause", "data": clause.to_dict()})
+            payload = json.dumps({"type": "clause", "data": clause})
             yield f"data: {payload}\n\n"
         yield "event: complete\ndata: {}\n\n"
         return

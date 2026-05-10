@@ -142,3 +142,36 @@ class ScanJobRepository:
 
     async def get_by_contract_id(self, contract_id: UUID) -> Optional[ScanJob]:
         return await get_scan_jobs_by_contract_id(self.session, contract_id, limit=1)  # noqa: F821
+
+    async def get_clauses(self, job_id: UUID):
+        from sqlalchemy import select
+        from app.models.contract import Contract
+        from app.models.clause import Clause
+        
+        job = await self.get_by_id(job_id)
+        if not job:
+            return []
+        
+        query = select(Clause).where(Clause.contract_id == job.contract_id).order_by(Clause.position_index)
+        result = await self.session.execute(query)
+        clauses = result.scalars().all()
+        
+        clause_dicts = []
+        for clause in clauses:
+            clause_dicts.append({
+                "clause_index": clause.position_index,
+                "clause_text": clause.text,
+                "risk_severity": clause.risk_level,
+                "safety_rating": clause.risk_level,
+                "risk_categories": [clause.risk_category] if clause.risk_category else [],
+                "explanation": clause.plain_english,
+                "recommendation": clause.worst_case_scenario,
+                "financial_exposure": clause.financial_exposure,
+                "negotiable": clause.negotiable,
+                "confidence": clause.confidence,
+                "headline": clause.headline,
+                "scenario": clause.scenario,
+                "probability": clause.probability,
+                "similar_case": clause.similar_case,
+            })
+        return clause_dicts

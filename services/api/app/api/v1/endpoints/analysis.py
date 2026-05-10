@@ -4,7 +4,7 @@ from uuid import UUID
 
 from app.db.session import get_async_session
 from app.core.security import get_current_user_id
-from app.repositories import contract_repo, scan_job_repo, user_repo
+from app.repositories import contract_repo, scan_job_repo, user_repo, clause_repo
 from app.schemas.scan_job import ScanResponse, ScanStatus
 from app.core.celery import celery_app
 

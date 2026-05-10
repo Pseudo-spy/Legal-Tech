@@ -35,6 +35,10 @@ export interface Clause {
   financial_exposure: string | null;
   negotiable: boolean;
   confidence: number;
+  headline?: string | null;
+  scenario?: string | null;
+  probability?: "Low" | "Medium" | "High";
+  similar_case?: string | null;
 }
 
 export interface ConsequenceData {

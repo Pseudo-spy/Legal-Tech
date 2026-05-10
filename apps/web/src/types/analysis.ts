@@ -36,6 +36,15 @@ export interface SummaryResult {
   negotiating_power: NegotiatingPower;
 }
 
+export interface ConsequenceResult {
+  headline: string;
+  scenario: string;
+  financial_exposure: string | null;
+  probability: "Low" | "Medium" | "High";
+  similar_case: string | null;
+  negotiable: boolean;
+}
+
 export interface PowerTrend {
   average_power_score: number;
   trend_description: string;

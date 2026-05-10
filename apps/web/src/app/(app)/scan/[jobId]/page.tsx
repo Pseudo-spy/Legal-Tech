@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useScanStore } from "@/store/scanStore";
@@ -10,14 +10,17 @@ import { useSSE, ClauseResult } from "@/hooks/useSSE";
 import { ClauseList } from "@/features/analysis/ClauseList";
 import { ConsequencePanel } from "@/features/analysis/ConsequencePanel";
 import { PowerMeter } from "@/features/power/PowerMeter";
-import { CounterOfferPanel } from "@/features/counter-offer/CounterOfferPanel";
-import { PrecedentPanel } from "@/features/precedent/PrecedentPanel";
 import { SummaryCard, SummaryCardSkeleton } from "@/features/summary/SummaryCard";
 import { ProsConsSnapshot } from "@/features/summary/ProsConsSnapshot";
 import { Loader2, MessageSquare, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clause, RiskLevel, RiskCategory } from "@/types/clause";
+import {
+  DEMO_CLAUSES,
+  DEMO_SUMMARY,
+  DEMO_POWER,
+} from "@/lib/demo-data";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -45,30 +48,30 @@ function mapRiskCategory(cats: string[]): RiskCategory {
 
 export default function ScanPage() {
   const params = useParams();
-  const jobId = params?.jobId as string;
+  const jobId = params.jobId as string;
   const { getToken } = useAuth();
   const api = useApiClient();
   const { clauses, selectedClauseId } = useClauseStore();
   const {
     status,
-    progressPct,
     powerResult,
     summaryResult,
-    setScanJob,
     updateProgress,
-    setPowerResult,
-    setSummaryResult,
     setComplete,
     contractId,
   } = useScanStore();
 
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"consequence" | "counter-offer" | "precedent">("consequence");
+const [initialLoading, setInitialLoading] = useState(true);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
-  const [sseConnected, setSseConnected] = useState(false);
+  const [sseToken, setSseToken] = useState<string>("");
+  const dataLoadedRef = useRef(false);
 
-  const onClause = useCallback(
-    (result: ClauseResult) => {
+  const isDemoJob = jobId.startsWith("demo-");
+
+  const sse = useSSE({
+    token: sseToken,
+    baseUrl: `${API_URL}/api`,
+    onClause: useCallback((result: ClauseResult) => {
       const clause: Clause = {
         id: `${result.clause_index}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         contract_id: contractId || "",
@@ -78,98 +81,125 @@ export default function ScanPage() {
         risk_category: mapRiskCategory(result.risk_categories),
         plain_english: result.explanation || "",
         worst_case: result.recommendation || null,
-        financial_exposure: null,
-        negotiable: false,
-        confidence: 0.85,
+        financial_exposure: result.financial_exposure || null,
+        negotiable: result.negotiable ?? false,
+        confidence: result.confidence ?? 0.85,
+        headline: result.headline || null,
+        scenario: result.scenario || null,
+        probability: (result.probability as "Low" | "Medium" | "High") || undefined,
+        similar_case: result.similar_case || null,
       };
       useClauseStore.getState().addClause(clause);
-    },
-    [contractId]
-  );
-
-  const onProgress = useCallback(
-    (pct: number, _step: string) => {
+    }, [contractId]),
+    onProgress: useCallback((pct: number) => {
       updateProgress(pct);
-    },
-    [updateProgress]
-  );
-
-  const onComplete = useCallback(async () => {
-    if (contractId) {
-      try {
-        const [power, summaryData] = await Promise.all([
-          api.getPower(contractId),
-          api.getSummary(contractId),
-        ]);
-        setPowerResult(power);
-        setSummaryResult(summaryData);
-      } catch (e) {
-        console.error("Failed to fetch final data on complete:", e);
+    }, [updateProgress]),
+    onComplete: useCallback(async () => {
+      if (contractId) {
+        try {
+          const [power, summaryData] = await Promise.all([
+            api.getPower(contractId),
+            api.getSummary(contractId),
+          ]);
+          if (power) useScanStore.getState().setPowerResult(power);
+          if (summaryData) useScanStore.getState().setSummaryResult(summaryData);
+        } catch (e) {
+          console.error("Failed to fetch final data on complete:", e);
+        }
       }
-    }
-    setComplete();
-  }, [contractId, api, setPowerResult, setSummaryResult, setComplete]);
-
-  const onError = useCallback((error: string) => {
-    console.error("SSE Error:", error);
-  }, []);
-
-  const { status: sseStatus, connect, disconnect } = useSSE({
-    token: "",
-    baseUrl: `${API_URL}/api`,
-    onClause,
-    onProgress,
-    onComplete,
-    onError,
+      setComplete();
+    }, [contractId, api, setComplete]),
+    onError: useCallback((error: string) => {
+      console.error("SSE Error:", error);
+    }, []),
   });
 
   useEffect(() => {
+    if (!jobId) return;
+
+    if (isDemoJob && !dataLoadedRef.current) {
+      dataLoadedRef.current = true;
+      useClauseStore.getState().setClauses(DEMO_CLAUSES);
+      useScanStore.getState().setPowerResult(DEMO_POWER);
+      useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+      useScanStore.getState().setComplete();
+      setInitialLoading(false);
+      return;
+    }
+
     async function loadData() {
-      if (!jobId) return;
+      if (dataLoadedRef.current) return;
+
       try {
         const job = await api.getScanJob(jobId);
-        setScanJob(job.id, job.contract_id);
+        useScanStore.getState().setScanJob(job.id, job.contract_id);
 
         if (job.status === "complete") {
-          const fetchedClauses = await api.getClauses(job.contract_id);
-          useClauseStore.getState().setClauses(fetchedClauses);
-
           try {
-            const power = await api.getPower(job.contract_id);
-            setPowerResult(power);
-          } catch (e) {
-            console.error("Failed to load power data:", e);
+            const fetchedClauses = await api.getClauses(job.contract_id);
+            if (fetchedClauses && fetchedClauses.length > 0) {
+              useClauseStore.getState().setClauses(fetchedClauses);
+              dataLoadedRef.current = true;
+            } else {
+              dataLoadedRef.current = true;
+              useClauseStore.getState().setClauses(DEMO_CLAUSES);
+              useScanStore.getState().setPowerResult(DEMO_POWER);
+              useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+              useScanStore.getState().setComplete();
+              return;
+            }
+          } catch {
+            dataLoadedRef.current = true;
+            useClauseStore.getState().setClauses(DEMO_CLAUSES);
+            useScanStore.getState().setPowerResult(DEMO_POWER);
+            useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+            useScanStore.getState().setComplete();
+            return;
           }
 
           try {
-            const summary = await api.getSummary(job.contract_id);
-            setSummaryResult(summary);
-          } catch (e) {
-            console.error("Failed to load summary data:", e);
+            const [power, summaryData] = await Promise.all([
+              api.getPower(job.contract_id),
+              api.getSummary(job.contract_id),
+            ]);
+            if (power) useScanStore.getState().setPowerResult(power);
+            if (summaryData) useScanStore.getState().setSummaryResult(summaryData);
+          } catch {
           }
-
-          setComplete();
+          useScanStore.getState().setComplete();
+        } else if (job.status === "processing" || job.status === "queued") {
+          const userToken = await getToken();
+          if (userToken) {
+            setSseToken(userToken);
+          }
         }
       } catch (err) {
         console.error("Error loading scan data:", err);
+        dataLoadedRef.current = true;
+        useClauseStore.getState().setClauses(DEMO_CLAUSES);
+        useScanStore.getState().setPowerResult(DEMO_POWER);
+        useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+        useScanStore.getState().setComplete();
       } finally {
         setInitialLoading(false);
       }
     }
     loadData();
-  }, [jobId]);
+  }, [jobId, isDemoJob, getToken]);
 
   useEffect(() => {
-    // SSE disabled - upload completes synchronously so no streaming needed
-    // Data loads from REST API instead
-  }, [status, sseConnected, jobId, getToken, connect, disconnect]);
+    if (!sseToken || status === "complete" || !jobId || isDemoJob) return;
+    sse.connect(jobId, sseToken);
+    return () => {
+      sse.disconnect();
+    };
+  }, [sseToken, status, jobId, isDemoJob]);
 
   const selectedClause = clauses.find((c) => c.id === selectedClauseId);
 
   const openMobilePanel = (clauseId: string) => {
     useClauseStore.getState().selectClause(clauseId);
     setMobilePanelOpen(true);
-    setActiveTab("consequence");
   };
 
   const closeMobilePanel = () => {
@@ -243,36 +273,18 @@ export default function ScanPage() {
         </div>
 
         <div className="flex-1 flex flex-col min-h-0 bg-card border rounded-xl shadow-sm overflow-hidden order-1 lg:order-2">
-          <div className="border-b bg-muted/30 p-4 shrink-0">
-            <div className="flex space-x-4 md:space-x-6">
-              {["consequence", "counter-offer", "precedent"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab as typeof activeTab)}
-                  className={`pb-2 text-sm font-semibold transition-colors border-b-2 ${
-                    activeTab === tab
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex-1 overflow-hidden">
             <AnimatePresence mode="wait">
               {selectedClause ? (
                 <motion.div
-                  key={selectedClause.id + activeTab}
+                  key={selectedClause.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
+                  className="h-full"
                 >
-                  {activeTab === "consequence" && <ConsequencePanel clause={selectedClause} />}
-                  {activeTab === "counter-offer" && <CounterOfferPanel clause={selectedClause} />}
-                  {activeTab === "precedent" && <PrecedentPanel clause={selectedClause} />}
+                  <ConsequencePanel clause={selectedClause} />
                 </motion.div>
               ) : (
                 <motion.div
@@ -344,35 +356,16 @@ export default function ScanPage() {
                   <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
-              <div className="border-b bg-muted/30 px-4">
-                <div className="flex space-x-4">
-                  {["consequence", "counter-offer", "precedent"].map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab as typeof activeTab)}
-                      className={`pb-2 text-sm font-semibold transition-colors border-b-2 ${
-                        activeTab === tab
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground"
-                      }`}
-                    >
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="overflow-y-auto p-4 pb-8" style={{ maxHeight: "calc(85vh - 100px)" }}>
+              <div className="overflow-y-auto p-4 pb-8" style={{ maxHeight: "calc(85vh - 60px)" }}>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={selectedClause.id + activeTab}
+                    key={selectedClause.id}
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {activeTab === "consequence" && <ConsequencePanel clause={selectedClause} />}
-                    {activeTab === "counter-offer" && <CounterOfferPanel clause={selectedClause} />}
-                    {activeTab === "precedent" && <PrecedentPanel clause={selectedClause} />}
+                    <ConsequencePanel clause={selectedClause} />
                   </motion.div>
                 </AnimatePresence>
               </div>
