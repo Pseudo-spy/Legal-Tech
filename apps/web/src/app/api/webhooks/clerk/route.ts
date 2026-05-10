@@ -11,12 +11,15 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = await req.text();
-  const headers = req.headers;
+  const headersObj: Record<string, string> = {};
+  req.headers.forEach((value, key) => {
+    headersObj[key] = value;
+  });
 
   const wh = new Webhook(CLERK_WEBHOOK_SECRET);
   let msg;
   try {
-    msg = wh.verify(payload, headers);
+    msg = wh.verify(payload, headersObj);
   } catch (err) {
     return NextResponse.json(
       { error: "Invalid signature" },
