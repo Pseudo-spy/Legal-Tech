@@ -54,7 +54,7 @@ export function LandingFooter() {
             <Link href="/" className="flex items-center gap-2 group mb-6">
               <Logo className="w-8 h-8 transition-transform group-hover:scale-110" />
               <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                LegalTech<span className="text-teal-500">.AI</span>
+                ContractIQ
               </span>
             </Link>
             <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mb-8 leading-relaxed">
@@ -102,13 +102,13 @@ export function LandingFooter() {
               <Shield className="w-4 h-4 text-teal-500" />
               <span>Not legal advice</span>
             </div>
-            <span>© {currentYear} LegalTech AI.</span>
+            <span>© {currentYear} ContractIQ.</span>
           </div>
           
           <div className="flex items-center gap-8">
-            <Link href="mailto:hello@legaltech.ai" className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
+            <Link href="mailto:hello@contractiq.com" className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
               <Mail className="w-4 h-4" />
-              hello@legaltech.ai
+              hello@contractiq.com
             </Link>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />

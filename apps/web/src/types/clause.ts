@@ -39,6 +39,12 @@ export interface Clause {
   scenario?: string | null;
   probability?: "Low" | "Medium" | "High" | null;
   similar_case?: string | null;
+  // Translated fields (populated after translation)
+  plain_english_translated?: string | null;
+  worst_case_translated?: string | null;
+  headline_translated?: string | null;
+  scenario_translated?: string | null;
+  text_translated?: string | null;
 }
 
 export interface ConsequenceData {

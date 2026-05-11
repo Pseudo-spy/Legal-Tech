@@ -48,6 +48,7 @@ async def trigger_scan(
                 contract_id=contract.id,
                 status=ScanStatus.COMPLETE,
                 progress_pct=100.0,
+                detected_language=contract.detected_language,
             )
 
         if latest_job.status == "processing":
@@ -56,6 +57,7 @@ async def trigger_scan(
                 contract_id=contract.id,
                 status=ScanStatus.PROCESSING,
                 progress_pct=latest_job.progress_pct,
+                detected_language=contract.detected_language,
             )
 
     # 4. If no job or failed job, create/reset and trigger
@@ -79,6 +81,7 @@ async def trigger_scan(
         contract_id=contract.id,
         status=ScanStatus.QUEUED,
         progress_pct=0.0,
+        detected_language=contract.detected_language,
     )
 
 
@@ -115,6 +118,7 @@ async def get_scan_status(
                 status=job.status,
                 progress_pct=float(job.progress_pct),
                 error_message=job.error_message,
+                detected_language=contract.detected_language,
             )
 
     # 3. If no job or not authorized, create sample data for this user
@@ -154,4 +158,10 @@ async def get_scan_status(
     db.add(analysis)
     await db.commit()
     
-    return ScanResponse(job_id=scan_job.id, contract_id=contract.id, status="complete", progress_pct=100.0)
+    return ScanResponse(
+        job_id=scan_job.id,
+        contract_id=contract.id,
+        status="complete",
+        progress_pct=100.0,
+        detected_language=contract.detected_language,
+    )

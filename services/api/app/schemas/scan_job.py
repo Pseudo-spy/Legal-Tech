@@ -100,6 +100,7 @@ class ScanResponse(BaseModel):
     status: ScanStatus
     progress_pct: float = 0.0
     error_message: Optional[str] = None
+    detected_language: Optional[str] = None
 
     class Config:
         from_attributes = True

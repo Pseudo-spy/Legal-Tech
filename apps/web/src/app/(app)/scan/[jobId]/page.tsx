@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useScanStore } from "@/store/scanStore";
 import { useClauseStore } from "@/store/clauseStore";
+import { useLanguageStore, LANGUAGE_NAMES } from "@/store/languageStore";
+import { useUIStore } from "@/store/uiStore";
 import { useApiClient } from "@/lib/api";
 import { useSSE, ClauseResult } from "@/hooks/useSSE";
 import { ClauseList } from "@/features/analysis/ClauseList";
@@ -12,6 +14,8 @@ import { ConsequencePanel } from "@/features/analysis/ConsequencePanel";
 import { PowerMeter } from "@/features/power/PowerMeter";
 import { SummaryCard, SummaryCardSkeleton } from "@/features/summary/SummaryCard";
 import { ProsConsSnapshot } from "@/features/summary/ProsConsSnapshot";
+import { LanguageDetectionBanner } from "@/features/multilingual/LanguageDetectionBanner";
+import { BilingualToggle } from "@/features/multilingual/BilingualToggle";
 import { Loader2, MessageSquare, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -48,7 +52,11 @@ function mapRiskCategory(cats: string[]): RiskCategory {
 
 export default function ScanPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const jobId = params.jobId as string;
+  // Read clause deep-link from URL (set by ClauseCitation pill in chat)
+  const deepLinkedClauseId = searchParams.get("clause");
+
   const { getToken } = useAuth();
   const api = useApiClient();
   const { clauses, selectedClauseId } = useClauseStore();
@@ -61,7 +69,10 @@ export default function ScanPage() {
     contractId,
   } = useScanStore();
 
-const [initialLoading, setInitialLoading] = useState(true);
+  const { setDetectedLanguage, reset: resetLanguage } = useLanguageStore();
+  const { resetLanguageBanner } = useUIStore();
+
+  const [initialLoading, setInitialLoading] = useState(true);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [sseToken, setSseToken] = useState<string>("");
   const dataLoadedRef = useRef(false);
@@ -114,6 +125,12 @@ const [initialLoading, setInitialLoading] = useState(true);
     }, []),
   });
 
+  // Reset language state whenever we load a new job
+  useEffect(() => {
+    resetLanguage();
+    resetLanguageBanner();
+  }, [jobId, resetLanguage, resetLanguageBanner]);
+
   useEffect(() => {
     if (!jobId) return;
 
@@ -133,6 +150,13 @@ const [initialLoading, setInitialLoading] = useState(true);
       try {
         const job = await api.getScanJob(jobId);
         useScanStore.getState().setScanJob(job.id, job.contract_id);
+
+        // Set detected language from contract data
+        if (job.detected_language) {
+          const langCode = job.detected_language.toLowerCase();
+          const langName = LANGUAGE_NAMES[langCode] || null;
+          setDetectedLanguage(langCode, langName);
+        }
 
         if (job.status === "complete") {
           try {
@@ -165,6 +189,7 @@ const [initialLoading, setInitialLoading] = useState(true);
             if (power) useScanStore.getState().setPowerResult(power);
             if (summaryData) useScanStore.getState().setSummaryResult(summaryData);
           } catch {
+            // Power/summary are optional
           }
           useScanStore.getState().setComplete();
         } else if (job.status === "processing" || job.status === "queued") {
@@ -185,7 +210,19 @@ const [initialLoading, setInitialLoading] = useState(true);
       }
     }
     loadData();
-  }, [jobId, isDemoJob, getToken]);
+  }, [jobId, isDemoJob, getToken, setDetectedLanguage]);
+
+  // Auto-select clause from deep-link URL param (from ClauseCitation pill)
+  useEffect(() => {
+    if (deepLinkedClauseId && clauses.length > 0) {
+      const matched = clauses.find((c) => c.id === deepLinkedClauseId);
+      if (matched) {
+        useClauseStore.getState().selectClause(deepLinkedClauseId);
+        // On mobile, open the panel automatically
+        setMobilePanelOpen(true);
+      }
+    }
+  }, [deepLinkedClauseId, clauses]);
 
   useEffect(() => {
     if (!sseToken || status === "complete" || !jobId || isDemoJob) return;
@@ -220,6 +257,7 @@ const [initialLoading, setInitialLoading] = useState(true);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden container mx-auto py-4 md:py-6 px-4 gap-4 md:gap-6">
+      {/* Header bar */}
       <div className="flex items-center justify-between border-b pb-4 shrink-0">
         <div className="flex items-center gap-3">
           <div className="hidden md:flex h-10 w-10 rounded-xl bg-primary/10 items-center justify-center">
@@ -233,14 +271,26 @@ const [initialLoading, setInitialLoading] = useState(true);
           </div>
         </div>
 
-        <Link
-          href={`/chat/${contractId || ""}?job=${jobId}`}
-          className="flex items-center gap-2 rounded-lg bg-zinc-900 px-3 md:px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span className="hidden sm:inline">Chat with AI</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Bilingual toggle — shows only if non-English contract detected */}
+          {contractId && (
+            <BilingualToggle contractId={contractId} />
+          )}
+
+          <Link
+            href={`/chat/${contractId || ""}?job=${jobId}`}
+            className="flex items-center gap-2 rounded-lg bg-zinc-900 px-3 md:px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Chat with AI</span>
+          </Link>
+        </div>
       </div>
+
+      {/* Language detection banner */}
+      {contractId && (
+        <LanguageDetectionBanner contractId={contractId} />
+      )}
 
       {showSummaryCard ? (
         <div className="shrink-0">

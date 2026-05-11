@@ -10,7 +10,6 @@ import httpx
 import os
 
 from app.api.deps import get_current_user, get_db
-from app.models.user import User
 from app.models.clause import Clause
 from app.models.contract import Contract
 from app.models.precedent_match import PrecedentMatch
@@ -24,11 +23,11 @@ AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8001")
 @router.get("/{clause_id}")
 async def get_precedent(
     clause_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Returns the legal precedent match for a HIGH-risk clause.
+    Returns legal precedent for a specific clause.
     For demo clause IDs, calls the AI service for real AI-generated analysis.
     """
     if clause_id.startswith("clause-"):
@@ -87,10 +86,11 @@ async def get_precedent(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid clause ID"
         )
 
+    # Verify clause exists and contract belongs to user
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user.id))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
     )
     clause = result.scalars().first()
 

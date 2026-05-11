@@ -28,7 +28,7 @@ AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8001")
 @router.post("/{clause_id}")
 async def generate_counter_offer(
     clause_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -81,7 +81,7 @@ async def generate_counter_offer(
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user.id))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
     )
     clause = result.scalars().first()
 
@@ -134,7 +134,7 @@ async def generate_counter_offer(
 @router.get("/{clause_id}")
 async def get_counter_offer(
     clause_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -186,7 +186,7 @@ async def get_counter_offer(
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user.id))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
     )
     clause = result.scalars().first()
 
