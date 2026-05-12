@@ -11,6 +11,7 @@ import httpx
 import os
 
 from app.api.deps import get_current_user, get_db
+from app.repositories import user_repo
 from app.models.user import User
 from app.models.clause import Clause
 from app.models.contract import Contract
@@ -23,6 +24,15 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:8001")
+
+
+def verify_user_and_get_internal_id(db: AsyncSession, clerk_user_id: str):
+    """Convert Clerk user_id to internal UUID."""
+    from uuid import UUID
+    try:
+        return UUID(clerk_user_id)
+    except ValueError:
+        return None
 
 
 @router.post("/{clause_id}")
@@ -78,10 +88,14 @@ async def generate_counter_offer(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid clause ID"
         )
 
+    user = await user_repo.get_user_by_clerk_id(db, current_user)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == user.id))
     )
     clause = result.scalars().first()
 
@@ -183,10 +197,14 @@ async def get_counter_offer(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid clause ID"
         )
 
+    user = await user_repo.get_user_by_clerk_id(db, current_user)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == user.id))
     )
     clause = result.scalars().first()
 
