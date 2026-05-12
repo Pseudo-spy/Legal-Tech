@@ -1,6 +1,6 @@
 """Database configuration and utilities."""
 
-from app.db.session import (
+from .session import (
     get_async_session,
     engine,
     AsyncSessionLocal,

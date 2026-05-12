@@ -4,8 +4,8 @@ from typing import Optional, List
 from uuid import UUID
 from sqlalchemy import select, join
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.scan_job import ScanJob
-from app.models.contract import Contract
+from ..models.scan_job import ScanJob
+from ..models.contract import Contract
 
 
 async def create_scan_job(
