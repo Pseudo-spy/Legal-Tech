@@ -87,10 +87,15 @@ async def get_precedent(
         )
 
     # Verify clause exists and contract belongs to user
+    from app.repositories import user_repo
+    user = await user_repo.get_user_by_clerk_id(db, current_user)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     result = await db.execute(
         select(Clause)
         .join(Contract, Clause.contract_id == Contract.id)
-        .where((Clause.id == clause_uuid) & (Contract.user_id == current_user))
+        .where((Clause.id == clause_uuid) & (Contract.user_id == user.id))
     )
     clause = result.scalars().first()
 
