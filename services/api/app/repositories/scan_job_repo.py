@@ -31,10 +31,14 @@ async def get_scan_job_by_id(
 ) -> Optional[ScanJob]:
     """Get scan job by ID. If user_id provided, scope to that user for security."""
     query = select(ScanJob).where(ScanJob.id == job_id)
-    if user_id:
-        query = (
-            query.select_from(ScanJob).join(Contract).where(Contract.user_id == user_id)
-        )
+    if user_id is not None:
+        try:
+            user_uuid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
+            query = (
+                query.select_from(ScanJob).join(Contract).where(Contract.user_id == user_uuid)
+            )
+        except (ValueError, AttributeError):
+            pass
     result = await session.execute(query)
     return result.scalars().first()
 
