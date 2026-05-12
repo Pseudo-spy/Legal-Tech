@@ -91,7 +91,12 @@ async def update_clause(
         return None
 
     for key, value in kwargs.items():
-        if hasattr(clause, key) and key not in ("id", "contract_id", "position_index", "created_at"):
+        if hasattr(clause, key) and key not in (
+            "id",
+            "contract_id",
+            "position_index",
+            "created_at",
+        ):
             setattr(clause, key, value)
 
     await session.commit()
@@ -108,3 +113,33 @@ async def delete_clause(session: AsyncSession, clause_id: UUID) -> bool:
     await session.delete(clause)
     await session.commit()
     return True
+
+
+async def get_by_contract_and_index(
+    session: AsyncSession, contract_id: UUID, position_index: int
+) -> Optional[Clause]:
+    """Get clause by contract_id and position_index."""
+    result = await session.execute(
+        select(Clause).where(
+            Clause.contract_id == contract_id,
+            Clause.position_index == position_index,
+        )
+    )
+    return result.scalars().first()
+
+
+class ClauseRepository:
+    """Class-based wrapper for clause repository functions."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_by_id(self, clause_id: UUID) -> Optional[Clause]:
+        return await get_clause_by_id(self.session, clause_id)
+
+    async def get_by_contract_and_index(
+        self, contract_id: UUID, position_index: int
+    ) -> Optional[Clause]:
+        return await get_by_contract_and_index(
+            self.session, contract_id, position_index
+        )

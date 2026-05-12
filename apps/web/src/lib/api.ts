@@ -45,14 +45,15 @@ export function useApiClient() {
     }
   }, [getToken]);
 
-  const upload = useCallback((fileUrl: string, originalFilename: string, fileType: string, fileSize: number) => 
+  const upload = useCallback((fileUrl: string, originalFilename: string, fileType: string, fileSize: number, encryptionKey?: string) => 
     request<UploadResponse>("/api/v1/upload", {
       method: "POST",
       body: JSON.stringify({ 
         file_url: fileUrl,
         original_filename: originalFilename,
         file_type: fileType,
-        file_size_bytes: fileSize
+        file_size_bytes: fileSize,
+        encryption_key: encryptionKey
       }),
     }), [request]);
 
@@ -62,14 +63,19 @@ export function useApiClient() {
   const getScanJob = useCallback((jobId: string) => 
     request<ScanJob>(`/api/v1/scan/${jobId}`), [request]);
 
+  const triggerProcess = useCallback((jobId: string) => 
+    request<{status: string}>(`/api/v1/upload/process/${jobId}`, { method: "POST" }), [request]);
+
   const getClauses = useCallback((contractId: string) => 
     request<Clause[]>(`/api/v1/contracts/${contractId}/clauses`), [request]);
 
+  const getSummary = useCallback(async (contractId: string) => {
+    const response = await request<{ summary: SummaryResult }>(`/api/v1/summary/${contractId}`);
+    return response.summary;
+  }, [request]);
+
   const getAnalysis = useCallback((contractId: string) => 
     request<AnalysisResult>(`/api/v1/analysis/${contractId}`), [request]);
-
-  const getSummary = useCallback((contractId: string) => 
-    request<SummaryResult>(`/api/v1/summary/${contractId}`), [request]);
 
   const getPower = useCallback((contractId: string) => 
     request<PowerResult>(`/api/v1/power/${contractId}`), [request]);
@@ -115,6 +121,7 @@ export function useApiClient() {
     upload,
     getContracts,
     getScanJob,
+    triggerProcess,
     getClauses,
     getAnalysis,
     getSummary,

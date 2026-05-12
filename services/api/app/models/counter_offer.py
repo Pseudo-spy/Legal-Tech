@@ -9,23 +9,19 @@ from app.db.base import Base
 
 class CounterOffer(Base):
     """Counter offer table — stores generated counter-offer versions for HIGH-risk clauses."""
-    
+
     __tablename__ = "counter_offers"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     clause_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("clauses.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        ForeignKey("clauses.id", ondelete="CASCADE"), nullable=False, index=True
     )
     aggressive_version: Mapped[str] = mapped_column(Text, nullable=False)
     balanced_version: Mapped[str] = mapped_column(Text, nullable=False)
     conservative_version: Mapped[str] = mapped_column(Text, nullable=False)
     negotiation_email: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationships

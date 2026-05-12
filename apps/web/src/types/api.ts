@@ -33,6 +33,9 @@ export interface ApiResponse<T> {
 export interface UploadResponse {
   job_id: string;
   contract_id: string;
+  status: string;
+  progress_pct: number;
+  error_message?: string;
 }
 
 export interface Report {

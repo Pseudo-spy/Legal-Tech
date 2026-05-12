@@ -5,9 +5,10 @@ Thumbs.db
 *.swp
 *.swo
 .env
+pyrightconfig.json
 .env.*
 !.env.example
-
+pylance.json
 node_modules/
 .next/
 out/
@@ -77,3 +78,7 @@ desktop.ini
 generated_pdfs/
 
 .cache/
+
+# Legal AI Data (seeded locally, not pushed to git)
+services/ai/app/data/favorable_clauses/
+services/ai/app/data/precedents/

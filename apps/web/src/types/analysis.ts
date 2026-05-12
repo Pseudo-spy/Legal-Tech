@@ -34,6 +34,16 @@ export interface SummaryResult {
   top_2_positives: string[];
   overall_risk_score: number;
   negotiating_power: NegotiatingPower;
+  contract_type?: string;
+}
+
+export interface ConsequenceResult {
+  headline: string;
+  scenario: string;
+  financial_exposure: string | null;
+  probability: "Low" | "Medium" | "High";
+  similar_case: string | null;
+  negotiable: boolean;
 }
 
 export interface PowerTrend {

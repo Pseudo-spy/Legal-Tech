@@ -1,5 +1,8 @@
 """Database session configuration and engine setup."""
 
+import sys as _sys
+from pathlib import Path as _Path
+
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -20,7 +23,7 @@ def _get_database_url() -> str:
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     elif url.startswith("psycopg://"):
         url = url.replace("psycopg://", "postgresql+asyncpg://", 1)
-    
+
     # Remove SSL-related parameters that asyncpg doesn't support
     # asyncpg uses SSL by default for secure connections
     if "?" in url:
@@ -36,7 +39,7 @@ def _get_database_url() -> str:
             url = base_url + "?" + "&".join(keep_params)
         else:
             url = base_url
-    
+
     return url
 
 
@@ -71,11 +74,17 @@ AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
 )
 
+SessionLocal = AsyncSessionLocal
+
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     """Dependency to get async database session."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
         finally:
             await session.close()

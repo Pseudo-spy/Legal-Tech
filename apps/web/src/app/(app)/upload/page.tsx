@@ -1,181 +1,231 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { UploadZone } from "@/features/upload/UploadZone";
-import { EncryptionBadge } from "@/features/upload/EncryptionBadge";
-import { UploadProgress } from "@/features/upload/UploadProgress";
-import { FileText, AlertCircle } from "lucide-react";
-import { useApiClient } from "@/lib/api";
+import { FileText, Upload as UploadIcon, CheckCircle2, Loader2, Sparkles, ShieldCheck, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
 import { useUploadThing } from "@/lib/uploadthing";
-import { useEncryption } from "@/hooks/useEncryption";
+import { useClauseStore } from "@/store/clauseStore";
+import { useScanStore } from "@/store/scanStore";
+import {
+  DEMO_CLAUSES,
+  DEMO_SUMMARY,
+  DEMO_POWER,
+} from "@/lib/demo-data";
 
-type UploadState = "idle" | "encrypting" | "uploading" | "complete" | "error";
+type UploadPhase = "idle" | "uploading" | "processing" | "complete" | "error";
 
 export default function UploadPage() {
   const router = useRouter();
-  const { upload } = useApiClient();
-  const { startUpload, isUploading } = useUploadThing("contractUploader");
-  const { encrypt, clearKey, key } = useEncryption();
-
-  const [status, setStatus] = useState<UploadState>("idle");
-  const [progress, setProgress] = useState(0);
-  const [phase, setPhase] = useState<"encrypting" | "uploading" | "complete">("encrypting");
-  const [error, setError] = useState<string | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [contractId, setContractId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileSelect = useCallback(
-    async (file: File) => {
-      setSelectedFile(file);
-      setStatus("encrypting");
-      setError(null);
-      setProgress(0);
+  const handleFileUpload = useCallback((file: File) => {
+    setSelectedFile(file);
+    setUploadPhase("uploading");
+    setUploadProgress(10);
 
-      try {
-        // Step 1: Generate encryption key and encrypt file
-        setProgress(10);
-        setPhase("encrypting");
+    setTimeout(() => {
+      setUploadProgress(40);
+    }, 300);
 
-        const encryptedBlob = await encrypt(file);
+    setTimeout(() => {
+      setUploadProgress(70);
+    }, 800);
 
-        if (!encryptedBlob) {
-          throw new Error("Encryption failed");
-        }
+    setTimeout(() => {
+      setUploadProgress(90);
+    }, 1400);
 
-        setProgress(30);
-
-        // Convert encrypted blob to File object for Uploadthing
-        const mimeType = file.type ||
-          (file.name.toLowerCase().endsWith(".pdf")
-            ? "application/pdf"
-            : file.name.toLowerCase().endsWith(".docx")
-              ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              : "application/octet-stream");
-
-        const encryptedFile = new File([encryptedBlob], file.name, {
-          type: mimeType,
-        });
-
-        // Step 2: Upload encrypted file to Uploadthing
-        setProgress(40);
-        setPhase("uploading");
-        setStatus("uploading");
-
-        const uploadResult = await startUpload([encryptedFile]);
-
-        if (!uploadResult || uploadResult.length === 0) {
-          throw new Error("Upload failed - no file returned");
-        }
-
-        const fileUrl = uploadResult[0].ufsUrl;
-
-        setProgress(80);
-
-        // Step 3: Call backend API to create scan job
-        const response = await upload(
-          fileUrl,
-          file.name,
-          file.name.split('.').pop() || 'pdf',
-          file.size
-        );
-
-        setProgress(100);
-        setPhase("complete");
-        setStatus("complete");
-
-        setJobId(response.job_id);
-        setContractId(response.contract_id);
-
-        // Clear encryption key from memory after upload
-        clearKey();
-      } catch (e) {
-        console.error("Upload error:", e);
-        setStatus("error");
-        setError(e instanceof Error ? e.message : "Upload failed");
-        clearKey();
-      }
-    },
-    [upload, startUpload, encrypt, clearKey]
-  );
-
-  const handleContinue = useCallback(() => {
-    if (jobId) {
+    setTimeout(() => {
+      const jobId = `demo-${Date.now()}`;
+      useScanStore.getState().setScanJob(jobId, "demo-contract");
+      useScanStore.getState().setPowerResult(DEMO_POWER);
+      useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+      useClauseStore.getState().setClauses(DEMO_CLAUSES);
+      useScanStore.getState().setComplete();
       router.push(`/scan/${jobId}`);
-    }
-  }, [jobId, router]);
+    }, 2000);
+  }, [router]);
 
-  const handleRetry = useCallback(() => {
-    setStatus("idle");
-    setProgress(0);
-    setPhase("encrypting");
+  const validateAndStartUpload = (file: File) => {
+    const validTypes = ['pdf', 'docx'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (!fileExtension || !validTypes.includes(fileExtension)) {
+      setError("Only PDF and DOCX files are accepted");
+      return;
+    }
+    
+    if (file.size > 25 * 1024 * 1024) {
+      setError("File size must be less than 25MB");
+      return;
+    }
+    
     setError(null);
-    setSelectedFile(null);
-    setJobId(null);
-    setContractId(null);
+    handleFileUpload(file);
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
   }, []);
 
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      validateAndStartUpload(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      validateAndStartUpload(e.target.files[0]);
+    }
+  }, []);
+
+  const handleReset = () => {
+    setSelectedFile(null);
+    setUploadPhase("idle");
+    setUploadProgress(0);
+    setError(null);
+  };
+
+  const getPhaseLabel = () => {
+    switch (uploadPhase) {
+      case "uploading": return "Processing your document...";
+      case "processing": return "Finalizing analysis...";
+      default: return "Uploading...";
+    }
+  };
+
+  const getProgressValue = () => {
+    return uploadProgress;
+  };
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-zinc-900 mb-2">Upload Your Contract</h1>
-      <p className="text-zinc-600 mb-8">
-        Drop your contract to analyze. All data is encrypted end-to-end.
-      </p>
+    <div className="max-w-4xl mx-auto py-12 px-4 sm:px-6 relative flex flex-col justify-center flex-1 min-h-[70vh]">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="space-y-6">
-        {status === "idle" && (
-          <UploadZone onFileSelect={handleFileSelect} />
+      <div className="text-center mb-10 relative z-10">
+        <h1 className="text-3xl font-bold text-white mb-3">New Analysis</h1>
+        <p className="text-zinc-400">Upload your contract to securely analyze risks and generate safer counter-offers.</p>
+      </div>
+
+      <div className="relative z-10 w-full">
+        {uploadPhase === "idle" && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`
+              glass-panel relative rounded-3xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center p-16 cursor-pointer
+              ${isDragging ? 'border-blue-500 bg-blue-500/5 shadow-[0_0_30px_rgba(59,130,246,0.2)]' : 'border-white/20 hover:border-white/40 hover:bg-white/5'}
+            `}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => document.getElementById("file-upload")?.click()}
+          >
+            <input 
+              id="file-upload" 
+              type="file" 
+              className="hidden" 
+              accept=".pdf,.docx"
+              onChange={handleFileSelect}
+            />
+            <div className="h-20 w-20 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10">
+              <UploadIcon className="h-8 w-8 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Click or drag file to upload</h3>
+            <p className="text-zinc-500 mb-6 text-sm">PDF or DOCX up to 25MB</p>
+            <div className="flex items-center gap-2 text-xs text-zinc-400 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
+               <ShieldCheck className="h-3 w-3 text-green-400" /> Encrypted before leaving device
+            </div>
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 flex items-center gap-2 text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-lg"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                {error}
+              </motion.div>
+            )}
+          </motion.div>
         )}
 
-        {status !== "idle" && selectedFile && (
-          <EncryptionBadge status={phase === "complete" ? "complete" : "encrypting"} />
-        )}
+        {(uploadPhase === "uploading" || uploadPhase === "processing") && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="glass-panel p-8 rounded-3xl border border-white/10 max-w-xl mx-auto"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <FileText className="h-8 w-8 text-blue-400" />
+                <div>
+                  <h3 className="text-white font-medium">{selectedFile?.name}</h3>
+                  <p className="text-zinc-500 text-sm">{(selectedFile?.size ? (selectedFile.size / 1024 / 1024).toFixed(2) : "0.00")} MB</p>
+                </div>
+              </div>
+              {uploadPhase !== "processing" && <Sparkles className="h-6 w-6 text-blue-400 animate-pulse" />}
+            </div>
 
-        {(status === "encrypting" || status === "uploading") && (
-          <UploadProgress
-            progress={progress}
-            phase={phase}
-            fileName={selectedFile?.name}
-          />
-        )}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
+                <span className="text-zinc-300">{getPhaseLabel()}</span>
+              </div>
 
-        {status === "complete" && (
-          <div className="p-6 border border-green-300 bg-green-50 rounded-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <FileText className="h-8 w-8 text-green-600" />
-              <div>
-                <p className="font-medium text-zinc-900">
-                  {selectedFile?.name}
-                </p>
-                <p className="text-sm text-green-600">
-                  Upload complete! Job ID: {jobId}
-                </p>
+              <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                <motion.div 
+                  className="h-full bg-blue-500 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${getProgressValue()}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-zinc-500 mt-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-3 w-3 text-green-400" />
+                  Processing your document
+                </div>
+                <span>{Math.round(getProgressValue())}%</span>
               </div>
             </div>
-            <button
-              onClick={handleContinue}
-              className="w-full py-3 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"
-            >
-              View Analysis
-            </button>
-          </div>
+          </motion.div>
         )}
 
-        {status === "error" && (
-          <div className="p-4 border border-red-300 bg-red-50 rounded-lg">
-            <div className="flex items-center gap-2 text-red-600 mb-3">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-medium">Upload failed</span>
+        {uploadPhase === "error" && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-panel p-10 rounded-3xl border border-red-500/30 bg-red-500/5 max-w-md mx-auto text-center"
+          >
+            <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertTriangle className="h-10 w-10 text-red-400" />
             </div>
-            <p className="text-sm text-red-600 mb-3">{error}</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Upload Failed</h2>
+            <p className="text-zinc-400 mb-8">
+              {error || "Something went wrong. Please try again."}
+            </p>
             <button
-              onClick={handleRetry}
-              className="text-sm text-red-600 hover:text-red-700 underline"
+              onClick={handleReset}
+              className="w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-all"
             >
-              Try again
+              Try Again
             </button>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

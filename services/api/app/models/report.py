@@ -9,25 +9,24 @@ from app.db.base import Base
 
 class Report(Base):
     """Report table — stores generated PDF reports and share links."""
-    
+
     __tablename__ = "reports"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     contract_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("contracts.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True
+        ForeignKey("contracts.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    file_path: Mapped[str] = mapped_column(String, nullable=False)  # Path to PDF on storage
-    share_uuid: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)  # UUID v4 for public sharing
+    file_path: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # Path to PDF on storage
+    share_uuid: Mapped[str] = mapped_column(
+        String, unique=True, nullable=False, index=True
+    )  # UUID v4 for public sharing
     share_expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False
+        DateTime(timezone=True), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     # Relationships
