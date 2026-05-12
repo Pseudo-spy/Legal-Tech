@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo } from "react";
+
 interface ClauseDiffProps {
   originalText: string;
   rewrittenText: string;

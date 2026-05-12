@@ -7,4 +7,5 @@ export interface ScanJob {
   progress_pct: number;
   created_at: string;
   completed_at: string | null;
+  detected_language?: string | null;
 }

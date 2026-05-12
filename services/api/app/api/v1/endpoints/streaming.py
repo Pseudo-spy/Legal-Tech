@@ -51,8 +51,14 @@ async def _sse_generator(
     repo = ScanJobRepository(db)
 
     # ── 1. Confirm job is still owned by this user ──────────────────────────
+    from app.repositories import user_repo
+    user = await user_repo.get_user_by_clerk_id(db, user_id)
+    if not user:
+        yield 'event: error\ndata: {"detail": "Not found"}\n\n'
+        return
+    
     job = await repo.get_by_id(job_id)
-    if not job or str(job.user_id) != user_id:
+    if not job or job.contract.user_id != user.id:
         yield 'event: error\ndata: {"detail": "Not found"}\n\n'
         return
 
@@ -60,7 +66,7 @@ async def _sse_generator(
     if job.status == "complete":
         clauses = await repo.get_clauses(job_id)
         for clause in clauses:
-            payload = json.dumps({"type": "clause", "data": clause.to_dict()})
+            payload = json.dumps({"type": "clause", "data": clause})
             yield f"data: {payload}\n\n"
         yield "event: complete\ndata: {}\n\n"
         return
@@ -177,7 +183,7 @@ async def stream_scan_results(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Job not found"
         )
-    if str(job.user_id) != str(current_user_id):
+    if str(job.contract.user_id) != str(user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )

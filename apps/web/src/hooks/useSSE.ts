@@ -15,6 +15,13 @@ export type ClauseResult = {
   risk_categories: string[];
   explanation: string;
   recommendation: string;
+  financial_exposure?: string | null;
+  negotiable?: boolean;
+  confidence?: number;
+  headline?: string | null;
+  scenario?: string | null;
+  probability?: string;
+  similar_case?: string | null;
 };
 
 export function useSSE({

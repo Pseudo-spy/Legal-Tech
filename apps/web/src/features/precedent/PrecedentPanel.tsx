@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Clause } from "@/types/clause";
-import { PrecedentMatch } from "@/types/api";
 import { useApiClient } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { CaseCard } from "./CaseCard";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { EnforcementBadge } from "./EnforcementBadge";
+import { DemoPrecedent } from "@/lib/demo-data";
 
 interface PrecedentPanelProps {
   clause: Clause;
@@ -15,27 +15,27 @@ interface PrecedentPanelProps {
 
 export function PrecedentPanel({ clause }: PrecedentPanelProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [precedent, setPrecedent] = useState<PrecedentMatch | null>(null);
+  const [precedent, setPrecedent] = useState<DemoPrecedent | null>(null);
   const { getPrecedent } = useApiClient();
 
-  if (clause.risk_level !== "HIGH") {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Legal precedent analysis is available for high-risk clauses.
-      </div>
-    );
-  }
-
-  const loadPrecedent = async () => {
+  const loadPrecedent = useCallback(async () => {
     setStatus("loading");
+
     try {
       const data = await getPrecedent(clause.id);
-      setPrecedent(data);
+      const demoP: DemoPrecedent = {
+        clause_id: clause.id,
+        precedent_summary: (data as any).precedent_summary || "",
+        enforcement_likelihood: ((data as any).enforcement_likelihood as DemoPrecedent["enforcement_likelihood"]) || "Uncertain",
+        confidence_score: (data as any).confidence_score || 50,
+        cited_cases: (data as any).cited_cases || [],
+      };
+      setPrecedent(demoP);
       setStatus("ready");
-    } catch (err) {
+    } catch {
       setStatus("error");
     }
-  };
+  }, [clause.id, getPrecedent]);
 
   if (status === "idle") {
     return (
@@ -58,7 +58,7 @@ export function PrecedentPanel({ clause }: PrecedentPanelProps) {
       <div className="flex h-full flex-col items-center justify-center space-y-4 p-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="animate-pulse text-sm font-medium text-muted-foreground">
-          Searching legal databases...
+          Searching legal databases using AI...
         </p>
       </div>
     );
@@ -70,9 +70,9 @@ export function PrecedentPanel({ clause }: PrecedentPanelProps) {
         <p className="text-sm text-red-500">Failed to load precedent data.</p>
         <button
           onClick={loadPrecedent}
-          className="rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
+          className="flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
         >
-          Try Again
+          <RefreshCw className="h-4 w-4" /> Try Again
         </button>
       </div>
     );
@@ -81,7 +81,7 @@ export function PrecedentPanel({ clause }: PrecedentPanelProps) {
   if (!precedent) return null;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
+    <div className="space-y-6 p-4">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
         <div className="flex-1 space-y-4">
           <h3 className="text-lg font-semibold text-foreground">Precedent Summary</h3>
@@ -90,7 +90,7 @@ export function PrecedentPanel({ clause }: PrecedentPanelProps) {
             <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Enforcement Likelihood
             </span>
-            <EnforcementBadge likelihood={precedent.enforcement_likelihood as any} />
+            <EnforcementBadge likelihood={precedent.enforcement_likelihood} />
           </div>
         </div>
         <div className="flex shrink-0 justify-center">
@@ -103,7 +103,7 @@ export function PrecedentPanel({ clause }: PrecedentPanelProps) {
           Cited Case Law
         </h3>
         <div className="grid grid-cols-1 gap-4">
-          {precedent.cited_cases.map((c, idx) => (
+          {(precedent.cited_cases || []).map((c, idx) => (
             <CaseCard
               key={idx}
               caseName={c.name}

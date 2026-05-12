@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LegalTech AI - Contract Scanner",
+  title: "ContractIQ - Contract Scanner",
   description: "AI-powered legal contract analysis platform",
 };
 

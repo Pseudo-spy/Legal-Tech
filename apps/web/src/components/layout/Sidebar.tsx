@@ -64,7 +64,7 @@ export function Sidebar({ recentContracts = [], isOpen = true, onClose }: Sideba
           <Link href="/" className="flex items-center gap-2 group">
             <Logo className="w-8 h-8 transition-transform group-hover:scale-105" />
             <span className="text-xl font-semibold tracking-tight text-white">
-              LegalTech<span className="text-white/60">.AI</span>
+              ContractIQ
             </span>
           </Link>
           <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-full text-zinc-400">
@@ -76,7 +76,7 @@ export function Sidebar({ recentContracts = [], isOpen = true, onClose }: Sideba
           <Link href="/" className="flex items-center gap-2 group">
             <Logo className="w-8 h-8 transition-transform group-hover:scale-105" />
             <span className="text-xl font-semibold tracking-tight text-white">
-              LegalTech<span className="text-white/60">.AI</span>
+              ContractIQ
             </span>
           </Link>
         </div>

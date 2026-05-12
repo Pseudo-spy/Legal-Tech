@@ -1,0 +1,605 @@
+import type { PowerResult } from "@/types/analysis";
+
+export const DEMO_CONTRACT_ID = "demo-contract-001";
+export const DEMO_JOB_ID = "demo-job-001";
+
+export interface DemoCounterOffer {
+  clause_id: string;
+  aggressive_clause: string;
+  explanation_aggressive: string;
+  balanced_clause: string;
+  explanation_balanced: string;
+  conservative_clause: string;
+  explanation_conservative: string;
+  negotiation_email: string;
+}
+
+export interface DemoPrecedent {
+  clause_id: string;
+  precedent_summary: string;
+  enforcement_likelihood: "Very Likely" | "Likely" | "Uncertain" | "Unlikely";
+  confidence_score: number;
+  cited_cases: {
+    name: string;
+    year: number;
+    jurisdiction: string;
+    outcome: string;
+  }[];
+}
+
+export const DEMO_COUNTER_OFFERS: Record<string, DemoCounterOffer> = {
+  "clause-001": {
+    clause_id: "clause-001",
+    aggressive_clause: "The Employee shall not engage in any business that competes directly with the Employer within a radius of ten (10) miles of the Employer's primary office location, for a period of six (6) months following termination. This restriction applies only to businesses with substantially similar services or products to the Employer's core business offerings.",
+    explanation_aggressive: "This version dramatically reduces geographic scope from 50 miles to 10 miles, cuts the time period from 2 years to 6 months, and limits the restriction to only truly competitive businesses rather than any competing business.",
+    balanced_clause: "The Employee agrees that for a period of twelve (12) months following termination, the Employee shall not engage in any business that directly competes with the Employer within a radius of twenty-five (25) miles of any of the Employer's offices where the Employee was directly assigned. This restriction applies only to businesses in the same industry vertical as the Employer's primary business.",
+    explanation_balanced: "This compromise version reduces the restriction to a reasonable 25-mile radius, 12-month period, and applies only to the employee's direct work area and direct industry competition — still protecting the company's legitimate interests while not trapping the employee.",
+    conservative_clause: "The Employee acknowledges that following termination, competitive activities within the immediate vicinity of the Employer's primary business location may be subject to reasonable restrictions. Any such restrictions shall be narrowly tailored to protect legitimate business interests and shall not prevent the Employee from engaging in general professional activities.",
+    explanation_conservative: "This minimal version preserves the existence of a non-compete provision while making it so narrowly defined it becomes effectively unenforceable in practice, protecting you from worst-case scenarios while maintaining a professional relationship.",
+    negotiation_email: "Dear [Employer Name],\n\nI am writing regarding the non-compete clause in our employment agreement. While I understand the importance of protecting legitimate business interests, the current language imposes an overly broad restriction that would prevent me from working in my chosen profession within a 50-mile radius for two years.\n\nI propose we modify this clause to: (1) reduce the geographic scope to 25 miles; (2) limit the duration to 12 months; and (3) restrict it to direct industry competitors only. This modification still protects the company's interests while allowing me to continue earning a livelihood in my field.\n\nI believe this is a reasonable request that benefits both parties by maintaining a constructive employment relationship.\n\nThank you for considering this proposal.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-002": {
+    clause_id: "clause-002",
+    aggressive_clause: "All intellectual property created by the Employee within the scope of their employment duties and during working hours using company resources shall be the sole property of the Company. Pre-existing intellectual property of the Employee that is not related to the Company's business shall remain the exclusive property of the Employee. The Company shall not claim ownership over any IP created by the Employee on their own time without using company resources.",
+    explanation_aggressive: "This version explicitly protects your personal IP, limits assignment to work within scope and working hours, and prevents the company from claiming ownership of your personal projects or side businesses.",
+    balanced_clause: "The Company shall own all intellectual property created by the Employee in connection with their employment duties during the term of this Agreement. For the avoidance of doubt, intellectual property created by the Employee entirely on their own time, without using Company resources, and unrelated to the Company's business shall remain the property of the Employee. The Employee agrees to disclose any pre-existing IP that may be incorporated into Company work product.",
+    explanation_balanced: "This compromise clearly defines the boundary between company IP and personal IP, protects your side projects, and provides a reasonable disclosure requirement without giving the company broad claims to your personal work.",
+    conservative_clause: "The Employee agrees that intellectual property created using Company time, equipment, or resources in the course of performing job duties shall be owned by the Company. The Company and Employee agree to work in good faith to identify any pre-existing IP of the Employee that may be relevant to the Employee's work, and to negotiate appropriate licensing or co-ownership arrangements where necessary.",
+    explanation_conservative: "This minimal version preserves the company's ability to protect work-product IP while establishing a good-faith negotiation process for edge cases, giving you a seat at the table if your personal projects are ever challenged.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the intellectual property assignment clause in our agreement. While I am happy to assign IP created in the course of my employment, the current language is extremely broad and could be interpreted to claim ownership over my personal projects and open-source contributions.\n\nI propose we clarify that: (1) IP created on my own time without company resources belongs to me; (2) the company waives claims to work unrelated to the business; and (3) we create a simple disclosure process for any pre-existing IP that might be incorporated into company work.\n\nThis protects the company's legitimate interests while ensuring my personal work remains mine.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-003": {
+    clause_id: "clause-003",
+    aggressive_clause: "Either party may terminate this Agreement with thirty (30) days advance written notice. Upon termination, the Company agrees to provide the Employee with severance pay equal to two (2) weeks of base salary for each year of completed employment, with a minimum of four (4) weeks severance. The Employee retains all accrued benefits and stock vesting schedules.",
+    explanation_aggressive: "This version adds a mutual 30-day notice requirement, mandates severance pay based on tenure, and protects your accrued benefits — giving you financial runway and dignity if terminated.",
+    balanced_clause: "Either party may terminate this Agreement with fourteen (14) days advance written notice. The Company may terminate immediately for cause. Upon termination without cause, the Company agrees to provide severance pay equal to two (2) weeks of base salary for each full year of employment, with a minimum floor of four (4) weeks. The Employee's accrued benefits and vested stock options shall be paid out upon termination.",
+    explanation_balanced: "This compromise gives you meaningful severance protection and advance notice while maintaining the company's ability to terminate immediately for genuine cause — a reasonable middle ground.",
+    conservative_clause: "The Company agrees that in the event of termination without cause, it will provide the Employee with reasonable advance notice or compensation in lieu of notice. The specific terms of such compensation shall be determined based on the Employee's tenure and role at the time of termination. The Employee shall receive all accrued and vested compensation and benefits.",
+    explanation_conservative: "This minimal version establishes the principle that you deserve notice or compensation without locking in specific amounts, giving you room to negotiate based on your specific situation when termination comes.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the termination clause in our agreement. While employment at will is standard, the current language waives all rights to notice or severance, which creates significant financial risk for me.\n\nI propose adding a mutual 14-day notice requirement (immediate termination for cause), severance based on tenure (2 weeks per year, minimum 4 weeks), and guaranteed payout of accrued benefits.\n\nThis protects the company's right to terminate but ensures I have financial runway and dignity if let go without cause.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-004": {
+    clause_id: "clause-004",
+    aggressive_clause: "Any assignment of intellectual property rights is strictly limited to deliverables explicitly enumerated in a signed Statement of Work under this Agreement. Pre-existing IP and independently developed work shall remain the exclusive property of the Employee. The Company shall not claim ownership over any intellectual property created on the Employee's own time without using Company resources, even if tangentially related to the Company's business.",
+    explanation_aggressive: "This version explicitly carves out your personal IP, limits assignment to only work explicitly in a signed SOW, and prevents the company from claiming anything you create on your own time — even if it touches on their business domain.",
+    balanced_clause: "The Company shall own intellectual property created by the Employee using Company time, equipment, or resources in connection with their employment duties. For the avoidance of doubt, intellectual property created by the Employee entirely on their own time, without using Company resources, and unrelated to the Company's business shall remain the property of the Employee. The Employee agrees to disclose any pre-existing IP that may be incorporated into Company work product.",
+    explanation_balanced: "This compromise clearly defines the boundary between company IP and personal IP, protects your side projects, and provides a reasonable disclosure requirement without giving the company broad claims to your personal work.",
+    conservative_clause: "The Employee agrees that intellectual property created using Company time, equipment, or resources in the course of performing job duties shall be owned by the Company. The Company and Employee agree to work in good faith to identify any pre-existing IP of the Employee that may be relevant to the Employee's work, and to negotiate appropriate licensing or co-ownership arrangements where necessary.",
+    explanation_conservative: "This minimal version preserves the company's ability to protect work-product IP while establishing a good-faith negotiation process for edge cases, giving you a seat at the table if your personal projects are ever challenged.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the IP assignment clause. The current language is extremely broad and could be interpreted to claim ownership over my personal projects and open-source contributions.\n\nI propose we clarify that: (1) IP created on my own time without company resources belongs to me; (2) the company waives claims to work unrelated to the business; and (3) we create a simple disclosure process for any pre-existing IP that might be incorporated into company work.\n\nThis protects the company's legitimate interests while ensuring my personal work remains mine.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-005": {
+    clause_id: "clause-005",
+    aggressive_clause: "Each Party shall indemnify, defend, and hold harmless the other Party from and against any third-party claims arising solely out of the indemnifying Party's gross negligence or willful misconduct. This obligation shall not extend to claims caused by the indemnified Party's own acts, omissions, or breach of this Agreement. The indemnifying Party's liability under this section shall be subject to the aggregate cap set forth in the Limitation of Liability clause.",
+    explanation_aggressive: "This version makes indemnification mutual and reciprocal, limits it to gross negligence or willful misconduct (not ordinary negligence), and ties it to the liability cap — dramatically reducing your personal exposure.",
+    balanced_clause: "Indemnification obligations under this Agreement are mutual and reciprocal; neither Party shall bear a disproportionate indemnity burden relative to the other. Each Party's duty to indemnify is conditioned upon the indemnified Party providing prompt written notice of any claim and reasonably cooperating in the defense at the indemnifying Party's expense. No settlement that imposes any obligation or admission upon the indemnified Party shall be entered without its prior written consent.",
+    explanation_balanced: "This compromise makes indemnification mutual, adds notice and cooperation requirements, and prevents the company from settling claims that bind you without your consent — a reasonable balance that protects both parties.",
+    conservative_clause: "A Party's indemnification obligation shall arise only with respect to direct, third-party claims and shall not encompass indirect, speculative, or consequential losses suffered by the other Party itself. The indemnifying Party retains the right to select competent legal counsel for the defense of any covered claim, subject to the indemnified Party's reasonable approval. Claims not notified in writing within thirty (30) days of discovery shall be deemed waived to the extent the indemnifying Party is materially prejudiced by the delay.",
+    explanation_conservative: "This minimal version preserves the indemnification concept while limiting it to direct third-party claims, excluding speculative damages, and adding a 30-day notice requirement with waiver for prejudice — giving you protection against unchecked liability.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the indemnification clause in our agreement. The current language places all liability on me personally for any claims arising from my actions or omissions — which is extremely broad and creates significant personal risk.\n\nI propose making indemnification mutual (both parties indemnify each other), limiting it to gross negligence or willful misconduct, and adding a notice and cooperation requirement. I would also like the indemnification to be subject to the overall liability cap.\n\nThis protects the company from genuine employee misconduct while ensuring I'm not personally liable for routine business risks.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-006": {
+    clause_id: "clause-006",
+    aggressive_clause: "This Agreement shall not renew automatically. Renewal requires the Employee's affirmative written election delivered to the Company no fewer than sixty (60) days before the end of the then-current term. Absent such written election, this Agreement shall expire at the conclusion of the current term with no further obligation on either Party.",
+    explanation_aggressive: "This version eliminates automatic renewal entirely — the contract simply expires unless you actively opt in. You have full control over your commitment, with no risk of being locked in by forgetting a deadline.",
+    balanced_clause: "Either Party may prevent an upcoming automatic renewal by delivering written cancellation notice at least thirty (30) days prior to the renewal date, with no penalty or early termination fee. Any automatic renewal shall occur on identical commercial terms as the immediately preceding term, with the sole exception that fees may increase by no more than the lesser of three percent (3%) or the trailing twelve-month change in the Consumer Price Index.",
+    explanation_balanced: "This compromise reduces the notice window from 60 to 30 days, caps any price increase, and ensures renewal terms cannot materially change without your explicit agreement — giving you flexibility without a complete restructure.",
+    conservative_clause: "Service Provider shall deliver written renewal reminder notices to Client at both ninety (90) days and thirty (30) days before each renewal opt-out deadline; failure to deliver both required notices renders the upcoming automatic renewal null and void. In the event a renewal is voided due to missing notices, Client may terminate the Agreement at any point during the purported renewal term upon ten (10) days' written notice, without liability for fees beyond services actually rendered through the termination date.",
+    explanation_conservative: "This minimal version doesn't eliminate auto-renewal but mandates the company send you two reminder notices (90-day and 30-day). If they fail to notify you, the renewal is void — effectively protecting you from accidentally being locked in.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the automatic renewal clause. The current 60-day notice window creates a significant risk that I could be locked into another year simply by missing a deadline.\n\nI propose either: (1) converting to an opt-in renewal model where the contract expires unless I actively elect to continue; or (2) reducing the notice requirement to 30 days and implementing a mandatory 90-day reminder notice from your side.\n\nOption 1 gives me full control over my commitment. Option 2 is a compromise that still protects me from accidental lock-in while maintaining the auto-renewal structure.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-007": {
+    clause_id: "clause-007",
+    aggressive_clause: "Each Party's total aggregate liability under or in connection with this Agreement, whether arising in contract, tort (including negligence), breach of statutory duty, or otherwise, shall not exceed the total fees actually paid by Client to Service Provider in the twelve (12) calendar months immediately preceding the event giving rise to the claim. Neither Party shall be liable to the other for any indirect, incidental, special, punitive, exemplary, or consequential damages of any nature.",
+    explanation_aggressive: "This version makes the liability cap mutual (applying equally to both parties) and adds a consequential damages exclusion — meaning neither side can claim lost profits, lost business, or other indirect damages from the other.",
+    balanced_clause: "Neither Party shall be liable to the other for any indirect, incidental, special, punitive, exemplary, or consequential damages of any nature, including but not limited to loss of revenue, loss of profits, loss of business, loss of data, loss of goodwill, or cost of substitute services, even if such Party has been advised of the possibility of such damages. This exclusion applies to all causes of action including breach of contract, negligence, strict liability, and statutory claims.",
+    explanation_balanced: "This compromise adds a consequential damages exclusion for both parties — protecting you from liability for indirect damages while also protecting the company. It's balanced because both sides get the same protection.",
+    conservative_clause: "The total aggregate liability cap applies mutually to both parties under this Agreement. In the event of a dispute, both parties agree to pursue resolution through the dispute resolution procedures set forth in this Agreement before seeking other remedies.",
+    explanation_conservative: "This minimal version preserves the liability cap concept but makes it mutual, ensuring you get the same protection the company enjoys. This is a simple, low-friction change that removes the one-sided nature of the original clause.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the limitation of liability clause. While I understand the company wants to cap its exposure, the current language only protects one party — the company. This creates an asymmetry where the company can cause significant harm and only be liable for a capped amount, while I would have no similar protection.\n\nI propose making the liability cap mutual — both parties are subject to the same 12-month fee cap, and both parties are excluded from consequential damages claims. This protects the company's interests while ensuring I'm not exposed to unlimited liability.\n\nThis is a reasonable ask that treats both parties equally under the contract.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-008": {
+    clause_id: "clause-008",
+    aggressive_clause: "Payment terms: Net 30 days from invoice date. Late payments shall accrue interest at a rate of 0.5% per month (6% APR) on the outstanding balance, not to exceed the maximum rate permitted by applicable law. In the event of any dispute regarding payment, the disputed amount shall be held in escrow pending resolution, and the undisputed portion shall be paid on time.",
+    explanation_aggressive: "This version halves the late interest rate from 18% to 6% APR, adds a usury cap to comply with state law, and introduces an escrow mechanism for disputed amounts — protecting you from punitive penalties while ensuring fair handling of payment disputes.",
+    balanced_clause: "Payment terms: Net 30 days from invoice date. Late payments shall accrue interest at a rate of 1.0% per month (12% APR) on the outstanding balance. Either party may dispute an invoice in good faith within fifteen (15) days of receipt; disputed amounts shall be resolved through the dispute resolution procedures before any interest accrues on the disputed portion.",
+    explanation_balanced: "This compromise reduces the interest rate to 12% APR (still reasonable for commercial contracts) and adds a 15-day dispute window before interest accrues — giving you time to contest incorrect invoices without penalty.",
+    conservative_clause: "Payment terms: Net 30 days from invoice date. Late payments shall accrue interest at a rate of 1.5% per month (18% APR) on the outstanding balance, as currently written. However, either party may invoke a payment dispute procedure, and interest on disputed amounts shall be suspended pending resolution of the dispute.",
+    explanation_conservative: "This minimal version preserves the existing interest rate while adding a dispute procedure that suspends interest on amounts in good-faith dispute — giving you a mechanism to contest incorrect invoices without accumulating penalty interest.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the payment terms in our agreement. The current 18% APR late interest rate is on the high end for commercial contracts, and there's no mechanism to dispute invoices before interest begins accruing.\n\nI propose reducing the late interest rate to 12% APR (still above market rates and incentivizing timely payment) and adding a 15-day dispute window during which interest does not accrue on contested amounts. This protects both parties from incorrect billing while incentivizing prompt payment.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-009": {
+    clause_id: "clause-009",
+    aggressive_clause: "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of laws principles. Both parties agree that the courts of the State of Delaware shall have exclusive jurisdiction over any disputes arising from or related to this Agreement.",
+    explanation_aggressive: "This version is essentially the same as the original — Delaware law is actually favorable and the company won't negotiate this. This aggressive version maintains Delaware jurisdiction with explicit exclusive jurisdiction language to prevent forum shopping.",
+    balanced_clause: "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of laws principles. Any disputes shall be resolved in the Delaware Court of Chancery, which has specialized jurisdiction over commercial contract disputes.",
+    explanation_balanced: "This is the same as the original — Delaware is already a pro-business, neutral jurisdiction with the Court of Chancery offering efficient commercial dispute resolution. No change needed here, but this version explicitly names the Court of Chancery for clarity.",
+    conservative_clause: "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware. Nothing in this clause shall prevent either party from seeking injunctive or other equitable relief in any court of competent jurisdiction.",
+    explanation_conservative: "This minimal version keeps Delaware as the governing law but adds an carve-out for equitable relief — ensuring you can seek emergency injunctions or other equitable remedies anywhere, without being forced to litigate in Delaware for urgent matters.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the governing law clause. I understand Delaware is a favorable jurisdiction with sophisticated commercial law and an efficient court system. However, I'd like to add a provision ensuring that either party may seek emergency injunctive or equitable relief in any court of competent jurisdiction, without being required to first arbitrate or litigate in Delaware.\n\nThis ensures that if urgent action is needed (such as to preserve trade secrets or prevent immediate harm), we can act quickly without geographical constraints, while still keeping Delaware as the primary governing jurisdiction for other disputes.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+  "clause-010": {
+    clause_id: "clause-010",
+    aggressive_clause: "Any notice required or permitted under this Agreement shall be in writing and delivered by email to the addresses provided by each party. All emails shall include a read receipt or delivery confirmation. Failure to deliver shall be promptly reported, and the receiving party shall acknowledge receipt within two (2) business days. Email shall constitute valid delivery for all purposes under this Agreement.",
+    explanation_aggressive: "This version adds read receipt requirements and a mandatory 2-business-day acknowledgment — ensuring you always know when notices are received and can't be blindsided by claims that you \"missed\" an important communication.",
+    balanced_clause: "Any notice required or permitted under this Agreement shall be in writing and delivered by email to the addresses provided by each party. Email shall constitute valid delivery for all purposes under this Agreement. Both parties shall maintain current contact information and shall notify the other of any changes within five (5) business days.",
+    explanation_balanced: "This compromise keeps email as valid notice but adds a 5-day notification requirement when contact information changes — preventing the company from sending notices to outdated addresses and claiming you never received them.",
+    conservative_clause: "Any notice required or permitted under this Agreement shall be in writing and delivered by email to the addresses provided by each party. Email shall constitute valid delivery for all purposes under this Agreement. Receipt of notice may be confirmed by automatic read receipt, delivery confirmation, or other electronic acknowledgment.",
+    explanation_conservative: "This minimal version keeps the email notice provision largely the same but adds confirmation language — allowing either party to use read receipts or delivery confirmations as proof of notice, creating a clear paper trail for all official communications.",
+    negotiation_email: "Dear [Employer Name],\n\nI would like to discuss the notice provision in our agreement. The current email notice clause is straightforward, but I'd like to add a confirmation mechanism to ensure both parties have clear proof of delivery.\n\nI propose adding language allowing either party to use read receipts or delivery confirmations as proof of notice. Additionally, I suggest that if a party's contact information changes, they must notify the other within five business days — ensuring notices are never sent to outdated addresses.\n\nThis creates a clear paper trail for all official communications and protects both parties from disputes about whether notice was properly delivered.\n\nThank you for your consideration.\n\nBest regards,\n[Your Name]",
+  },
+};
+
+export const DEMO_PRECEDENTS: Record<string, DemoPrecedent> = {
+  "clause-001": {
+    clause_id: "clause-001",
+    precedent_summary: "Non-compete agreements are routinely enforced when they are reasonable in geographic scope, duration, and protect a legitimate business interest. However, courts consistently strike down or narrow overly broad restrictions. The trend in recent case law has been to favor employee mobility, especially in industries where geographic restrictions create undue hardship.",
+    enforcement_likelihood: "Likely",
+    confidence_score: 72,
+    cited_cases: [
+      {
+        name: "Silguero v. Creteguard, Inc.",
+        year: 2010,
+        jurisdiction: "Florida",
+        outcome: "Enforceable — Court upheld 50-mile radius non-compete for sales employee, finding legitimate business interest in customer relationships.",
+      },
+      {
+        name: "Brown v. TLE Realty",
+        year: 2015,
+        jurisdiction: "Texas",
+        outcome: "Unenforceable — Court struck down broad non-compete for low-level employee, finding no legitimate business interest justified the restriction.",
+      },
+      {
+        name: "Morgan v. Tech Corp",
+        year: 2018,
+        jurisdiction: "California",
+        outcome: "Unenforceable — California's strong public policy against non-competes rendered the clause void regardless of contract language.",
+      },
+    ],
+  },
+  "clause-002": {
+    clause_id: "clause-002",
+    precedent_summary: "IP assignment clauses are generally enforceable, but courts apply the 'works made for hire' doctrine narrowly. Assignments must clearly identify the scope of work covered. Pre-existing IP cannot be assigned without explicit identification. Overly broad assignment clauses that claim ownership of all work created during employment, including personal projects, have been challenged and narrowed in multiple jurisdictions.",
+    enforcement_likelihood: "Uncertain",
+    confidence_score: 58,
+    cited_cases: [
+      {
+        name: "Access Media v. ESPN",
+        year: 2013,
+        jurisdiction: "New York",
+        outcome: "Enforceable — Broad IP assignment clause upheld, court found media company had legitimate interest in all work product.",
+      },
+      {
+        name: "Freeman v. Keysys Technologies",
+        year: 2017,
+        jurisdiction: "California",
+        outcome: "Partially Unenforceable — Court narrowed assignment to only work created using company resources and within scope of employment.",
+      },
+      {
+        name: "Patel v. Silicon Valley Startup",
+        year: 2020,
+        jurisdiction: "California",
+        outcome: "Unenforceable — Pre-existing IP provision struck down as overbroad; startup could not claim ownership of personal projects never used in company work.",
+      },
+    ],
+  },
+  "clause-003": {
+    clause_id: "clause-003",
+    precedent_summary: "At-will employment is the default in most jurisdictions and is generally upheld. However, employment agreements that explicitly waive rights to notice or severance in all circumstances may be subject to equitable review. Courts have found that agreements imposing unilateral waivers without reciprocal consideration can be unconscionable, especially when there is a significant power imbalance.",
+    enforcement_likelihood: "Very Likely",
+    confidence_score: 88,
+    cited_cases: [
+      {
+        name: "Kerr v. Baranow",
+        year: 2009,
+        jurisdiction: "Canada",
+        outcome: "Enforceable — Court upheld at-will termination with no notice requirement as standard employment law principle.",
+      },
+      {
+        name: "Torres v. Retail Corp",
+        year: 2019,
+        jurisdiction: "New York",
+        outcome: "Unenforceable — Explicit waiver of all severance rights found unconscionable given power imbalance at hiring.",
+      },
+      {
+        name: "Williams v. Domino Foods",
+        year: 2021,
+        jurisdiction: "California",
+        outcome: "Enforceable — California at-will doctrine allows termination without cause or notice; explicit waiver upheld.",
+      },
+    ],
+  },
+  "clause-004": {
+    clause_id: "clause-004",
+    precedent_summary: "IP assignment clauses are generally enforceable but courts apply the 'works made for hire' doctrine narrowly. Assignments must clearly identify the scope of work covered. Pre-existing IP cannot be assigned without explicit identification. Overly broad clauses that claim ownership over personal projects, open-source contributions, or work created without company resources have been challenged and narrowed in multiple jurisdictions. California courts in particular distinguish between work within the scope of employment versus independent personal projects.",
+    enforcement_likelihood: "Uncertain",
+    confidence_score: 62,
+    cited_cases: [
+      {
+        name: "Cubic Corp. v. Marty",
+        year: 2019,
+        jurisdiction: "California Court of Appeal",
+        outcome: "Partially Enforceable — Court held IP within scope of employment belonged to employer, but personal projects on own time were not assignable.",
+      },
+      {
+        name: "Board of Trustees v. Roche Molecular Systems",
+        year: 2011,
+        jurisdiction: "U.S. Supreme Court",
+        outcome: "Enforceable — Inventors initially own their inventions; employers must take specific steps to obtain assignment of federally-funded IP.",
+      },
+      {
+        name: "Nichia Corp. v. Nakamura",
+        year: 2021,
+        jurisdiction: "Federal Circuit Court of Appeals",
+        outcome: "Partially Enforceable — Employee retained rights to improvements that constituted new inventions beyond implementing employer's existing technology.",
+      },
+    ],
+  },
+  "clause-005": {
+    clause_id: "clause-005",
+    precedent_summary: "Indemnification clauses in employment contracts are generally enforceable but courts scrutinize mutuality and proportionality. One-sided indemnification obligations that impose unlimited liability on employees for any claims against the company have been found unconscionable in some jurisdictions. Courts often apply the doctrine of unconscionability when there is a significant power imbalance and the indemnifying party receives no reciprocal benefit.",
+    enforcement_likelihood: "Uncertain",
+    confidence_score: 55,
+    cited_cases: [
+      {
+        name: "Agilent Technologies v. Kirkland",
+        year: 2020,
+        jurisdiction: "Central District of California",
+        outcome: "Enforceable — Broad indemnification for third-party claims upheld when employee clearly breached confidentiality obligations.",
+      },
+      {
+        name: "Earthbound Media Corp. v. MCI Communications",
+        year: 2017,
+        jurisdiction: "Central District of California",
+        outcome: "Enforceable — Mutual NDA breach; court awarded damages based on competitive advantage lost and trade secret value disclosed.",
+      },
+      {
+        name: "Speedplay Inc. v. Bebop Inc.",
+        year: 2019,
+        jurisdiction: "Northern District of California",
+        outcome: "Enforceable — Preliminary injunction issued for customer list misappropriation; court protected confidential customer relationships as trade secrets.",
+      },
+    ],
+  },
+  "clause-006": {
+    clause_id: "clause-006",
+    precedent_summary: "Auto-renewal clauses are routinely enforced, but courts have increasingly scrutinized them under consumer protection and unconscionability doctrines. The FTC has taken enforcement action against unfair renewal practices. Courts have held that automatic renewal provisions that lock consumers into long-term commitments without adequate notice violate consumer protection statutes. Best practice requires clear disclosure and affirmative consent for automatic renewals.",
+    enforcement_likelihood: "Likely",
+    confidence_score: 75,
+    cited_cases: [
+      {
+        name: "Ryan LLC v. Federal Trade Commission",
+        year: 2024,
+        jurisdiction: "Federal District Court (Texas)",
+        outcome: "Unenforceable — FTC non-compete ban vacated; court found agency lacked statutory authority, but case sets precedent for scrutinizing unfair contract provisions.",
+      },
+      {
+        name: "Luminary Consulting v. Chen",
+        year: 2023,
+        jurisdiction: "Massachusetts Appeals Court",
+        outcome: "Enforceable with Modification — Non-compete modified from 12 months to 6 months; court demonstrated willingness to modify overbroad restrictions.",
+      },
+      {
+        name: "Ironclad Security v. Patel",
+        year: 2022,
+        jurisdiction: "Illinois Appellate Court",
+        outcome: "Modified and Enforced — 3-year non-compete reduced to 12 months with limited geographic scope; court applied blue pencil doctrine to preserve valid portions.",
+      },
+    ],
+  },
+  "clause-007": {
+    clause_id: "clause-007",
+    precedent_summary: "Limitation of liability clauses are generally enforceable in commercial contracts. However, courts refuse to enforce caps that are so low as to be unconscionable or that would leave one party without adequate remedy. Mutual liability caps are standard and enforceable. One-sided caps that protect only one party may be challenged as unconscionable if the other party has significant potential exposure.",
+    enforcement_likelihood: "Likely",
+    confidence_score: 80,
+    cited_cases: [
+      {
+        name: "Oracle America Inc. v. Rimini Street Inc.",
+        year: 2022,
+        jurisdiction: "Ninth Circuit Court of Appeals",
+        outcome: "Enforceable — $50 million damages awarded for copyright infringement and trade secret theft; court confirmed strong IP protection regardless of liability limitations.",
+      },
+      {
+        name: "Waymo LLC v. Uber Technologies Inc.",
+        year: 2018,
+        jurisdiction: "Northern District of California",
+        outcome: "Enforceable — $259 million settlement for trade secret theft; court demonstrated willingness to award substantial damages for clear violations.",
+      },
+      {
+        name: "Fortress Biotech v. Myriad Genetics",
+        year: 2019,
+        jurisdiction: "District of Utah",
+        outcome: "Enforceable — Preliminary injunction issued for NDA breach in biotechnology; court protected research data and genetic testing methodologies.",
+      },
+    ],
+  },
+  "clause-008": {
+    clause_id: "clause-008",
+    precedent_summary: "Standard payment terms including Net 30 and interest clauses for late payments are routinely enforced as reasonable commercial terms. Courts generally uphold interest rates within statutory limits (typically usury laws capping rates at 10-15% for personal loans, but higher rates for commercial credit are often allowed). Interest rate differentials between parties are generally enforceable if both are sophisticated commercial entities.",
+    enforcement_likelihood: "Very Likely",
+    confidence_score: 92,
+    cited_cases: [
+      {
+        name: "PepsiCo Inc. v. Redmond (follow-on proceedings)",
+        year: 2019,
+        jurisdiction: "Seventh Circuit Court of Appeals",
+        outcome: "Enforceable — NDA enforcement continued; additional damages for ongoing violations; court demonstrated ongoing monitoring and compliance enforcement.",
+      },
+      {
+        name: "Fortress Biotech v. Myriad Genetics",
+        year: 2019,
+        jurisdiction: "District of Utah",
+        outcome: "Enforceable — Court confirmed commercial agreements between sophisticated parties are upheld when terms are clearly negotiated.",
+      },
+    ],
+  },
+  "clause-009": {
+    clause_id: "clause-009",
+    precedent_summary: "Delaware governing law provisions are among the most commonly enforced in commercial contracts. Delaware's Court of Chancery is known for experienced judges, efficient resolution, and sophisticated commercial law. Courts generally uphold choice of law provisions unless the chosen state has no rational relationship to the parties or transaction, or applying the law would violate a fundamental public policy of the state whose law would otherwise apply.",
+    enforcement_likelihood: "Very Likely",
+    confidence_score: 95,
+    cited_cases: [
+      {
+        name: "FilmTec Corp. v. Allied-Signal Inc.",
+        year: 1991,
+        jurisdiction: "Federal Circuit Court of Appeals",
+        outcome: "Enforceable — Patent assignment confirmed; court upheld clear contractual terms and corporate assignments under Delaware law.",
+      },
+      {
+        name: "Oracle America Inc. v. Rimini Street Inc.",
+        year: 2022,
+        jurisdiction: "Ninth Circuit Court of Appeals",
+        outcome: "Enforceable — Delaware law applied to software copyright and trade secret case; $50 million damages awarded.",
+      },
+    ],
+  },
+  "clause-010": {
+    clause_id: "clause-010",
+    precedent_summary: "Email notice provisions are routinely enforced as valid contractual notice methods. Courts have consistently held that electronic communication satisfies the writing requirement under the UES. Read receipts and delivery confirmations are generally admissible as evidence of notice. However, disputes arise over whether emails were actually delivered to the correct address and whether the recipient was aware of the obligation to monitor the email address.",
+    enforcement_likelihood: "Very Likely",
+    confidence_score: 94,
+    cited_cases: [
+      {
+        name: "Earthbound Media Corp. v. MCI Communications",
+        year: 2017,
+        jurisdiction: "Central District of California",
+        outcome: "Enforceable — Court upheld NDA with broad email notice provisions; electronic delivery confirmed as valid notice.",
+      },
+      {
+        name: "PepsiCo Inc. v. Redmond",
+        year: 2019,
+        jurisdiction: "Seventh Circuit Court of Appeals",
+        outcome: "Enforceable — Follow-on proceedings continued to enforce NDA obligations; court confirmed electronic communications satisfied notice requirements.",
+      },
+    ],
+  },
+};
+
+export const DEMO_CLAUSES = [
+  {
+    id: "clause-001",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "The Employee agrees that during the term of employment and for a period of two (2) years following termination, the Employee shall not engage in any business that competes directly or indirectly with the Employer within a radius of fifty (50) miles of any of the Employer's offices.",
+    position_index: 0,
+    risk_level: "HIGH" as const,
+    risk_category: "non_compete" as const,
+    plain_english: "You cannot work for a competitor for 2 years within 50 miles after leaving your job.",
+    worst_case: "You may be unable to find employment in your field for up to 2 years, forcing you to relocate or leave your profession entirely.",
+    financial_exposure: "$250,000",
+    negotiable: true,
+    confidence: 0.65,
+    headline: "Broad Non-Compete Clause Restricts Your Career",
+    scenario: "This clause prohibits you from working for any competing business within 50 miles for 2 years after leaving. Courts frequently enforce such clauses, meaning you could be sued if you take a job with a competitor. This effectively traps you in your current role or forces you to leave the area.",
+    probability: "High" as const,
+    similar_case: "Silguero v. Creteguard, Inc. (2010)",
+  },
+  {
+    id: "clause-002",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "All intellectual property, including but not limited to inventions, discoveries, improvements, designs, works of authorship, and trade secrets, conceived, developed, or reduced to practice by the Employee during the term of employment, whether during working hours or using company resources or not, shall be the sole and exclusive property of the Company.",
+    position_index: 1,
+    risk_level: "HIGH" as const,
+    risk_category: "ip_assignment" as const,
+    plain_english: "Any invention, code, writing, or idea you create while employed belongs entirely to the company — even if done on your own time with your own equipment.",
+    worst_case: "You lose all rights to any apps, products, or inventions you create — even ones created entirely on your own time that have nothing to do with the company's business.",
+    financial_exposure: "$2,000,000",
+    negotiable: true,
+    confidence: 0.88,
+    headline: "Full IP Assignment Captures All Your Future Work",
+    scenario: "This clause claims ownership over ALL intellectual property you create during your employment, regardless of whether it's related to the company's business or created on your own time. California law limits such broad clauses, but if you're in another state, this could strip you of rights to personal projects, side businesses, or even code you write on weekends.",
+    probability: "Medium" as const,
+    similar_case: "Access Media v. ESPN (2013)",
+  },
+  {
+    id: "clause-003",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "The Company may terminate this Agreement at any time, with or without cause, without prior notice, and without any severance obligation. The Employee hereby waives any right to advance notice, severance pay, or any other compensation upon termination.",
+    position_index: 2,
+    risk_level: "HIGH" as const,
+    risk_category: "termination" as const,
+    plain_english: "The company can fire you immediately, for any reason or no reason, and you waive any right to notice or severance pay.",
+    worst_case: "You could be terminated today with no warning, no severance, and no explanation — leaving you suddenly without income.",
+    financial_exposure: "$75,000",
+    negotiable: false,
+    confidence: 0.95,
+    headline: "Termination at Will with No Severance Protection",
+    scenario: "This clause allows the company to fire you immediately without any notice or severance. While employment at-will is standard, explicitly waiving severance rights means you have zero financial cushion if terminated. Without cause protections, you have no legal recourse even if fired unfairly.",
+    probability: "High" as const,
+    similar_case: "Kerr v. Baranow (2009)",
+  },
+  {
+    id: "clause-004",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "The Employee agrees to assign to the Company all rights, title, and interest in any patents, copyrights, trademarks, or other intellectual property rights arising from work performed using company time, equipment, facilities, or resources, including but not limited to pre-existing IP that is incorporated into company products.",
+    position_index: 3,
+    risk_level: "MEDIUM" as const,
+    risk_category: "ip_assignment" as const,
+    plain_english: "Any IP created using company resources belongs to the company, and they can even claim pre-existing work you incorporated.",
+    worst_case: "Your prior work, open source contributions, or personal projects may be claimed as company property if you ever use them in your work.",
+    financial_exposure: "Unknown",
+    negotiable: true,
+    confidence: 0.82,
+    headline: "Company Resources Clause May Claim Personal Projects",
+    scenario: "This clause extends IP ownership to work created using company resources. If you occasionally check personal email on your work laptop or use company WiFi for a side project, those projects could be claimed as company IP. The 'pre-existing IP' provision is particularly aggressive and may be unenforceable in many jurisdictions.",
+    probability: "Medium" as const,
+    similar_case: "Sega v. Belega (2009)",
+  },
+  {
+    id: "clause-005",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "The Employee shall indemnify and hold harmless the Company from any claims, damages, losses, or expenses (including reasonable attorney fees) arising from the Employee's breach of this Agreement, negligence, or willful misconduct, whether by action or omission.",
+    position_index: 4,
+    risk_level: "MEDIUM" as const,
+    risk_category: "indemnity" as const,
+    plain_english: "You agree to pay the company's legal costs if they get sued because of something you did or failed to do.",
+    worst_case: "If a client sues the company claiming your work caused harm, you could be personally liable for the company's legal defense costs.",
+    financial_exposure: "$500,000",
+    negotiable: true,
+    confidence: 0.78,
+    headline: "Indemnification Clause Creates Personal Liability",
+    scenario: "This broad indemnification clause could make you personally responsible for legal costs if your actions (or omissions) lead to lawsuits against the company. In consulting or contractor relationships, this is particularly dangerous — it means you're on the hook for the company's legal defense even for matters beyond your control.",
+    probability: "Medium" as const,
+    similar_case: "Nakahara v. NS Design (2001)",
+  },
+  {
+    id: "clause-006",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "This agreement shall automatically renew for successive one (1) year periods unless either party provides written notice of non-renewal at least sixty (60) days prior to the end of the then-current term.",
+    position_index: 5,
+    risk_level: "MEDIUM" as const,
+    risk_category: "auto_renewal" as const,
+    plain_english: "This contract automatically renews every year forever unless you give 60 days notice. Miss the deadline and you're locked in for another year.",
+    worst_case: "You could be stuck in a contract you want to exit simply by forgetting to send a notice 60 days in advance.",
+    financial_exposure: "$120,000",
+    negotiable: true,
+    confidence: 0.91,
+    headline: "Auto-Renewal Trap Locks You Indefinitely",
+    scenario: "This automatic renewal clause means the contract extends for another year unless you actively cancel 60 days before expiry. This is a common trap — employees often forget the deadline and find themselves locked in for another 12 months. Some states require clear disclosure of renewal terms, but not all do.",
+    probability: "Medium" as const,
+    similar_case: "FTC v. Wyndham (2014)",
+  },
+  {
+    id: "clause-007",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "The Employee acknowledges and agrees that the total liability of the Company under this Agreement, whether in contract, tort, or otherwise, shall not exceed the total fees paid by the Company to the Employee in the twelve (12) months preceding the claim.",
+    position_index: 6,
+    risk_level: "LOW" as const,
+    risk_category: "limitation_of_liability" as const,
+    plain_english: "The company's legal liability to you is capped at what they paid you in the last year.",
+    worst_case: "If the company causes you significant financial harm, your maximum recovery is limited to a year of your salary.",
+    financial_exposure: "Capped at $80,000",
+    negotiable: true,
+    confidence: 0.85,
+    headline: "Liability Cap Protects Company at Your Expense",
+    scenario: "This clause limits the company's liability to you to just 12 months of fees. If the company breaches the contract in ways that cause you $500,000 in damages, you can only recover $80,000 at most. While companies often include these caps to protect themselves, they rarely offer reciprocal protection for employees.",
+    probability: "Low" as const,
+    similar_case: null,
+  },
+  {
+    id: "clause-008",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "Payment terms: Net 30 days from invoice date. Late payments shall accrue interest at a rate of 1.5% per month (18% APR) on the outstanding balance.",
+    position_index: 7,
+    risk_level: "LOW" as const,
+    risk_category: "payment" as const,
+    plain_english: "You get paid within 30 days of invoicing. If you're late, you pay 1.5% monthly interest.",
+    worst_case: "Standard payment terms — the interest clause is typical for business contracts.",
+    financial_exposure: null,
+    negotiable: true,
+    confidence: 0.95,
+    headline: "Standard Net 30 Payment Terms",
+    scenario: "This is a standard Net 30 payment term, which is common and reasonable in business relationships. The interest clause for late payments (1.5% per month) is also typical. Both parties are subject to the same terms, making this a balanced provision.",
+    probability: "Low" as const,
+    similar_case: null,
+  },
+  {
+    id: "clause-009",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware, without regard to its conflict of laws principles.",
+    position_index: 8,
+    risk_level: "SAFE" as const,
+    risk_category: "governing_law" as const,
+    plain_english: "Delaware law applies to this contract, and Delaware courts have jurisdiction over any disputes.",
+    worst_case: "Standard legal provision — Delaware is actually known for having fair and efficient business courts.",
+    financial_exposure: null,
+    negotiable: true,
+    confidence: 0.99,
+    headline: "Delaware Governing Law — Favorable Business Jurisdiction",
+    scenario: "Delaware is the most popular state for commercial contracts because it has sophisticated business law, an efficient court system (Court of Chancery), and experienced judges rather than juries for contract disputes. While some view out-of-state jurisdiction as a burden, Delaware is actually considered a pro-business, neutral venue.",
+    probability: null,
+    similar_case: null,
+  },
+  {
+    id: "clause-010",
+    contract_id: DEMO_CONTRACT_ID,
+    text: "Any notice required or permitted under this Agreement shall be in writing and delivered by email to the addresses provided by each party. Email shall constitute valid delivery for all purposes under this Agreement.",
+    position_index: 9,
+    risk_level: "SAFE" as const,
+    risk_category: "other" as const,
+    plain_english: "All official communications between parties can be done via email.",
+    worst_case: "Standard communication provision — no risk identified.",
+    financial_exposure: null,
+    negotiable: true,
+    confidence: 0.98,
+    headline: "Email Notice Provision — Standard & Efficient",
+    scenario: "This is a straightforward provision allowing electronic communication, which is standard in modern contracts. Email delivery is widely accepted as valid legal notice in most jurisdictions. This clause creates no risk and simply makes administrative processes more efficient for both parties.",
+    probability: null,
+    similar_case: null,
+  },
+];
+
+export const DEMO_SUMMARY = {
+  one_liner: "This contract contains significant risks including an overly broad non-compete clause, complete IP assignment of your personal work, and at-will termination without severance. Recommend negotiating key changes before signing.",
+  should_you_sign: "yes_with_changes" as const,
+  top_3_concerns: [
+    "Non-compete clause restricts employment for 2 years within 50 miles",
+    "Full IP assignment could claim ownership of your personal projects",
+    "Termination at will with no severance or notice requirements",
+  ],
+  top_2_positives: [
+    "Standard Net 30 payment terms are reasonable and balanced",
+    "Delaware governing law provides efficient dispute resolution",
+  ],
+  overall_risk_score: 68,
+  negotiating_power: "Weak" as const,
+};
+
+export const DEMO_POWER: PowerResult = {
+  id: "demo-power-001",
+  contract_id: DEMO_CONTRACT_ID,
+  power_score: 58,
+  power_label: "Strongly Favors Counterparty",
+  key_imbalances: [
+    {
+      clause: "Termination clause",
+      why: "Company can terminate immediately without notice or severance, while you have no reciprocal protections. This creates extreme asymmetry in the employment relationship.",
+      score: 22,
+    },
+    {
+      clause: "Non-compete clause",
+      why: "The non-compete is overly broad (50 miles, 2 years) and covers work outside the company's actual business, giving them control over your career decisions.",
+      score: 18,
+    },
+    {
+      clause: "IP Assignment clause",
+      why: "Full assignment of all IP including personal projects created on your own time significantly exceeds what is necessary to protect the company's legitimate interests.",
+      score: 18,
+    },
+  ],
+  leverage_points: [
+    "Request a non-compete scope reduction to match your actual role and industry",
+    "Push for 30-day notice period before termination",
+    "Negotiate IP assignment to only cover work created within the scope of your duties",
+    "Add mutual indemnification with equal obligations for both parties",
+    "Request severance pay equivalent to 30 days upon termination without cause",
+  ],
+};
+
+export const DEMO_SCAN_JOB = {
+  id: DEMO_JOB_ID,
+  contract_id: DEMO_CONTRACT_ID,
+  status: "complete" as const,
+  progress_pct: 100,
+  created_at: new Date().toISOString(),
+  completed_at: new Date().toISOString(),
+};

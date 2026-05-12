@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Clause } from "@/types/clause";
-import { CounterOffer } from "@/types/api";
 import { useApiClient } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { VersionTabs } from "./VersionTabs";
 import { ClauseDiff } from "./ClauseDiff";
 import { NegotiationEmail } from "./NegotiationEmail";
+import { DemoCounterOffer } from "@/lib/demo-data";
 
 interface CounterOfferPanelProps {
   clause: Clause;
@@ -15,48 +15,46 @@ interface CounterOfferPanelProps {
 
 export function CounterOfferPanel({ clause }: CounterOfferPanelProps) {
   const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">("idle");
-  const [counterOffer, setCounterOffer] = useState<CounterOffer | null>(null);
-  const [activeVersionIndex, setActiveVersionIndex] = useState(1); // Default to Balanced (1)
+  const [counterOffer, setCounterOffer] = useState<DemoCounterOffer | null>(null);
+  const [activeVersionIndex, setActiveVersionIndex] = useState(1);
   const { generateCounterOffer, getCounterOffer } = useApiClient();
 
-  // If clause is not HIGH risk, don't allow counter-offers
-  if (clause.risk_level !== "HIGH") {
-    return (
-      <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
-        Counter-offers are generated for high-risk clauses only.
-      </div>
-    );
-  }
-
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setStatus("generating");
+
     try {
       await generateCounterOffer(clause.id);
-      
-      // Poll every 3 seconds
+
       const interval = setInterval(async () => {
         try {
           const result = await getCounterOffer(clause.id);
-          // If the backend returns it when ready
-          if (result && result.balanced_clause) {
-            setCounterOffer(result);
+          if (result && (result as any).balanced_clause) {
+            const demoCO: DemoCounterOffer = {
+              clause_id: clause.id,
+              aggressive_clause: (result as any).aggressive_clause || "",
+              explanation_aggressive: (result as any).explanation_aggressive || "",
+              balanced_clause: (result as any).balanced_clause || "",
+              explanation_balanced: (result as any).explanation_balanced || "",
+              conservative_clause: (result as any).conservative_clause || "",
+              explanation_conservative: (result as any).explanation_conservative || "",
+              negotiation_email: (result as any).negotiation_email || "",
+            };
+            setCounterOffer(demoCO);
             setStatus("ready");
             clearInterval(interval);
           }
-        } catch (err) {
-          // Ignore, probably still generating or not found yet
+        } catch {
         }
       }, 3000);
 
-      // Timeout after 60s
       setTimeout(() => {
         clearInterval(interval);
         if (status === "generating") setStatus("error");
       }, 60000);
-    } catch (err) {
+    } catch {
       setStatus("error");
     }
-  };
+  }, [clause.id, generateCounterOffer, getCounterOffer]);
 
   if (status === "idle") {
     return (
@@ -79,7 +77,7 @@ export function CounterOfferPanel({ clause }: CounterOfferPanelProps) {
       <div className="flex h-full flex-col items-center justify-center space-y-4 p-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="animate-pulse text-sm font-medium text-muted-foreground">
-          Generating counter-offer strategies...
+          Generating counter-offer strategies using AI...
         </p>
       </div>
     );
@@ -88,12 +86,12 @@ export function CounterOfferPanel({ clause }: CounterOfferPanelProps) {
   if (status === "error") {
     return (
       <div className="flex h-full flex-col items-center justify-center space-y-4 p-8 text-center">
-        <p className="text-sm text-red-500">Failed to generate counter-offer. Please try again.</p>
+        <p className="text-sm text-red-500">Failed to generate counter-offer.</p>
         <button
           onClick={handleGenerate}
-          className="rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
+          className="flex items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
         >
-          Try Again
+          <RefreshCw className="h-4 w-4" /> Try Again
         </button>
       </div>
     );
@@ -102,17 +100,17 @@ export function CounterOfferPanel({ clause }: CounterOfferPanelProps) {
   if (!counterOffer) return null;
 
   const versionsData = [
-    { strategy: "Conservative", text: counterOffer.conservative_clause, explanation: counterOffer.explanation_conservative, negotiation_email: counterOffer.negotiation_email },
-    { strategy: "Balanced", text: counterOffer.balanced_clause, explanation: counterOffer.explanation_balanced, negotiation_email: counterOffer.negotiation_email },
-    { strategy: "Aggressive", text: counterOffer.aggressive_clause, explanation: counterOffer.explanation_aggressive, negotiation_email: counterOffer.negotiation_email },
+    { strategy: "Conservative", text: counterOffer.conservative_clause, explanation: counterOffer.explanation_conservative },
+    { strategy: "Balanced", text: counterOffer.balanced_clause, explanation: counterOffer.explanation_balanced },
+    { strategy: "Aggressive", text: counterOffer.aggressive_clause, explanation: counterOffer.explanation_aggressive },
   ];
 
   const versions = versionsData.map((v) => v.strategy);
   const activeVersion = versionsData[activeVersionIndex] || versionsData[1];
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 space-y-8 duration-500">
-      <div className="flex items-center justify-between border-b pb-4">
+    <div className="space-y-6 p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Drafted Counter-Offer</h3>
           <p className="text-sm text-muted-foreground">Select a negotiation strategy</p>
@@ -131,7 +129,7 @@ export function CounterOfferPanel({ clause }: CounterOfferPanelProps) {
       />
 
       <div className="border-t pt-4">
-        <NegotiationEmail emailBody={activeVersion.negotiation_email} />
+        <NegotiationEmail emailBody={counterOffer.negotiation_email} />
       </div>
     </div>
   );

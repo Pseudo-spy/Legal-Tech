@@ -48,7 +48,7 @@ export function Navbar({
             <Link href="/" className={`flex items-center gap-2 group ${hideLogo ? 'md:hidden' : ''}`}>
               <Logo className="w-8 h-8 transition-transform group-hover:scale-105" />
               <span className="text-xl font-semibold tracking-tight text-white hidden sm:block">
-                LegalTech<span className="text-white/60">.AI</span>
+                ContractIQ
               </span>
             </Link>
           )}

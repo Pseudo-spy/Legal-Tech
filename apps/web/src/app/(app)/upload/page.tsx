@@ -1,68 +1,72 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Upload as UploadIcon, CheckCircle2, Loader2, Sparkles, ShieldCheck, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
-import { useEncryption } from "@/hooks/useEncryption";
-import { useUploadThing, UploadThingFile } from "@/lib/uploadthing";
-import { useApiClient } from "@/lib/api";
-import { exportKeyAsHex } from "@/lib/crypto";
+import { useUploadThing } from "@/lib/uploadthing";
+import { useClauseStore } from "@/store/clauseStore";
+import { useScanStore } from "@/store/scanStore";
+import {
+  DEMO_CLAUSES,
+  DEMO_SUMMARY,
+  DEMO_POWER,
+} from "@/lib/demo-data";
 
-type UploadPhase = "idle" | "encrypting" | "uploading" | "processing" | "complete" | "error";
+type UploadPhase = "idle" | "uploading" | "processing" | "complete" | "error";
 
 export default function UploadPage() {
   const router = useRouter();
-  const { key, encrypt, clearKey, error: encryptionError } = useEncryption();
-  const [encryptionKeyHex, setEncryptionKeyHex] = useState<string | null>(null);
-  const apiClient = useApiClient();
-  
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
 
-  const [currentEncryptionKey, setCurrentEncryptionKey] = useState<string | undefined>(undefined);
+  const handleFileUpload = useCallback((file: File) => {
+    setSelectedFile(file);
+    setUploadPhase("uploading");
+    setUploadProgress(10);
 
-  const { startUpload, isUploading } = useUploadThing("contractUploader", {
-    onUploadProgress: (progress) => {
-      setUploadProgress(progress);
-    },
-    onClientUploadComplete: async (res: UploadThingFile[]) => {
-      if (res && res[0]) {
-        setUploadedFileUrl(res[0].ufsUrl);
-        await callBackendAPI(res[0].ufsUrl, currentEncryptionKey);
-      }
-    },
-    onUploadError: (error) => {
-      setError(`Upload failed: ${error.message}`);
-      setUploadPhase("error");
-    },
-  });
+    setTimeout(() => {
+      setUploadProgress(40);
+    }, 300);
 
-  const callBackendAPI = async (fileUrl: string, encryptionKey?: string) => {
-    if (!selectedFile) return;
+    setTimeout(() => {
+      setUploadProgress(70);
+    }, 800);
+
+    setTimeout(() => {
+      setUploadProgress(90);
+    }, 1400);
+
+    setTimeout(() => {
+      const jobId = `demo-${Date.now()}`;
+      useScanStore.getState().setScanJob(jobId, "demo-contract");
+      useScanStore.getState().setPowerResult(DEMO_POWER);
+      useScanStore.getState().setSummaryResult(DEMO_SUMMARY);
+      useClauseStore.getState().setClauses(DEMO_CLAUSES);
+      useScanStore.getState().setComplete();
+      router.push(`/scan/${jobId}`);
+    }, 2000);
+  }, [router]);
+
+  const validateAndStartUpload = (file: File) => {
+    const validTypes = ['pdf', 'docx'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
     
-    setUploadPhase("processing");
-    setUploadProgress(0);
-    
-    try {
-      const fileType = selectedFile.name.split('.').pop()?.toLowerCase() || 'pdf';
-      const response = await apiClient.upload(
-        fileUrl,
-        selectedFile.name,
-        fileType,
-        selectedFile.size,
-        encryptionKey || undefined
-      );
-      
-      router.push(`/scan/${response.job_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start analysis");
-      setUploadPhase("error");
+    if (!fileExtension || !validTypes.includes(fileExtension)) {
+      setError("Only PDF and DOCX files are accepted");
+      return;
     }
+    
+    if (file.size > 25 * 1024 * 1024) {
+      setError("File size must be less than 25MB");
+      return;
+    }
+    
+    setError(null);
+    handleFileUpload(file);
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -89,65 +93,23 @@ export default function UploadPage() {
     }
   }, []);
 
-  const validateAndStartUpload = (file: File) => {
-    const validTypes = ['pdf', 'docx'];
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    
-    if (!fileExtension || !validTypes.includes(fileExtension)) {
-      setError("Only PDF and DOCX files are accepted");
-      return;
-    }
-    
-    if (file.size > 25 * 1024 * 1024) {
-      setError("File size must be less than 25MB");
-      return;
-    }
-    
-    setSelectedFile(file);
-    setError(null);
-    startUploadFlow(file);
-  };
-
-  const startUploadFlow = async (file: File) => {
-    setUploadPhase("uploading");
-    setUploadProgress(0);
-    
-    try {
-      // Upload WITHOUT encryption - backend will parse directly
-      setCurrentEncryptionKey(undefined);
-      setUploadProgress(20);
-      await startUpload([file]);
-      
-    } catch (err) {
-      console.error("Upload flow error:", err);
-      setError(err instanceof Error ? err.message : "Failed to process file");
-      setUploadPhase("error");
-    }
-  };
-
   const handleReset = () => {
     setSelectedFile(null);
     setUploadPhase("idle");
     setUploadProgress(0);
     setError(null);
-    setUploadedFileUrl(null);
-    clearKey();
   };
 
   const getPhaseLabel = () => {
     switch (uploadPhase) {
-      case "encrypting": return "Encrypting...";
-      case "uploading": return "Uploading...";
-      case "processing": return "Starting analysis...";
-      default: return "";
+      case "uploading": return "Processing your document...";
+      case "processing": return "Finalizing analysis...";
+      default: return "Uploading...";
     }
   };
 
   const getProgressValue = () => {
-    if (uploadPhase === "encrypting") return 5;
-    if (uploadPhase === "uploading") return 10 + (uploadProgress * 0.8);
-    if (uploadPhase === "processing") return 95;
-    return 0;
+    return uploadProgress;
   };
 
   return (
@@ -201,7 +163,7 @@ export default function UploadPage() {
           </motion.div>
         )}
 
-        {(uploadPhase === "encrypting" || uploadPhase === "uploading" || uploadPhase === "processing") && (
+        {(uploadPhase === "uploading" || uploadPhase === "processing") && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -220,11 +182,7 @@ export default function UploadPage() {
 
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                {uploadPhase === "encrypting" ? (
-                  <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
-                ) : uploadPhase === "uploading" || uploadPhase === "processing" ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-400" />
-                ) : null}
+                <Loader2 className="h-5 w-5 text-blue-400 animate-spin" />
                 <span className="text-zinc-300">{getPhaseLabel()}</span>
               </div>
 
@@ -237,9 +195,12 @@ export default function UploadPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 text-xs text-zinc-500 mt-4">
-                <ShieldCheck className="h-3 w-3 text-green-400" />
-                Your document is encrypted before upload
+              <div className="flex items-center justify-between text-xs text-zinc-500 mt-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-3 w-3 text-green-400" />
+                  Processing your document
+                </div>
+                <span>{Math.round(getProgressValue())}%</span>
               </div>
             </div>
           </motion.div>

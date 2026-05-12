@@ -7,6 +7,7 @@ import logging
 from typing import List, Dict, Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 from uuid import UUID
 
 from app.repositories import contract_repo
@@ -39,31 +40,26 @@ async def verify_contract_and_get_id(
 
 
 async def check_embeddings_exist(
+    db: AsyncSession,
     contract_id: UUID,
 ) -> bool:
     """
-    Check if embeddings exist for this contract.
+    Check if embeddings exist for this contract using the async session.
     """
-    # Use sync connection for simplicity
-    import os
-    from sqlalchemy import create_engine, text
-
-    db_url = os.environ.get("DATABASE_URL", "").replace(
-        "postgresql+asyncpg", "postgresql"
-    )
-    engine = create_engine(db_url)
-
-    with engine.connect() as conn:
-        result = conn.execute(
+    try:
+        result = await db.execute(
             text(
                 """SELECT COUNT(*) FROM embeddings 
-                   WHERE contract_id = :contract_id 
-                   AND embedding_type = 'contract_qa'"""
+                   WHERE contract_id = :contract_id"""
             ),
             {"contract_id": str(contract_id)},
         )
         count = result.scalar_one()
         return count > 0
+    except Exception as e:
+        # Table might not exist or embeddings not set up — allow anyway
+        logger.warning("Could not check embeddings (table may not exist): %s", e)
+        return True  # Allow chat even without embeddings check
 
 
 def format_conversation_history(
@@ -71,12 +67,10 @@ def format_conversation_history(
 ) -> List[Dict[str, str]]:
     """
     Format conversation history for the chat pipeline.
-    Converts to LangChain message format if needed.
     """
     if not history:
         return []
 
-    # Ensure proper format: [{"role": "user", "content": "..."}, ...]
     formatted = []
     for msg in history:
         if "role" in msg and "content" in msg:
@@ -91,19 +85,31 @@ async def stream_chat_response(
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat response using the AI chat pipeline.
+    Yields SSE-formatted events: data: {json}\n\n
     """
     logger.info("Streaming chat response for contract %s", contract_id)
 
     try:
         from services.ai.app.rag.chat_pipeline import answer_question
 
-        # Convert conversation history to format expected by pipeline
         history = format_conversation_history(conversation_history or [])
 
-        # Call the pipeline (which should be async and streaming)
-        async for token in answer_question(contract_id, question, history):
-            yield token
+        async for event in answer_question(contract_id, question, history):
+            yield event
+
+    except ImportError:
+        # AI service not available — yield a graceful fallback response
+        logger.warning("AI service not available, using fallback response")
+        fallback = (
+            "The AI analysis service is currently unavailable. "
+            "Please ensure the AI service is running and try again."
+        )
+        import json
+        for chunk in fallback.split(" "):
+            yield f"data: {json.dumps({'type': 'token', 'content': chunk + ' '})}\n\n"
 
     except Exception as e:
         logger.error("Chat streaming error: %s", e)
-        yield f"Error: {str(e)}"
+        import json
+        error_msg = f"I encountered an error while processing your question: {str(e)}"
+        yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"

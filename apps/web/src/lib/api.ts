@@ -63,6 +63,9 @@ export function useApiClient() {
   const getScanJob = useCallback((jobId: string) => 
     request<ScanJob>(`/api/v1/scan/${jobId}`), [request]);
 
+  const triggerProcess = useCallback((jobId: string) => 
+    request<{status: string}>(`/api/v1/upload/process/${jobId}`, { method: "POST" }), [request]);
+
   const getClauses = useCallback((contractId: string) => 
     request<Clause[]>(`/api/v1/contracts/${contractId}/clauses`), [request]);
 
@@ -118,6 +121,7 @@ export function useApiClient() {
     upload,
     getContracts,
     getScanJob,
+    triggerProcess,
     getClauses,
     getAnalysis,
     getSummary,

@@ -69,7 +69,7 @@ class OpenRouterClient:
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://github.com/your-repo",
-                "X-Title": "Legal-Tech",
+                "X-Title": "ContractIQ",
             },
             timeout=httpx.Timeout(30.0, connect=10.0),
         )

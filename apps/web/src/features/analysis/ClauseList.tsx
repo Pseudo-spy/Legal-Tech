@@ -51,25 +51,28 @@ export function ClauseList({ onCardClick }: ClauseListProps) {
       <div className="flex-1 overflow-y-auto pr-2 pb-24 scrollbar-thin">
         <div className="flex flex-col gap-4">
           <AnimatePresence mode="popLayout">
-            {filteredClauses.map((clause, index) => (
-              <motion.div
-                key={clause.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{
-                  duration: 0.25,
-                  delay: index * 0.05,
-                  ease: "easeOut",
-                }}
-                layout
-              >
-                <ClauseCard
-                  clause={clause}
-                  onCardClick={onCardClick}
-                />
-              </motion.div>
-            ))}
+            {filteredClauses.map((clause, index) => {
+              const isNew = !clause.id.includes("-");
+              return (
+                <motion.div
+                  key={clause.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{
+                    duration: 0.3,
+                    delay: isNew ? index * 0.05 : 0,
+                    ease: "easeOut",
+                  }}
+                  layout
+                >
+                  <ClauseCard
+                    clause={clause}
+                    onCardClick={onCardClick}
+                  />
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
           {filteredClauses.length === 0 && (
             <div className="mt-8 text-center text-sm text-muted-foreground">
