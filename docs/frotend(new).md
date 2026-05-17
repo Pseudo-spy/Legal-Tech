@@ -1,4 +1,6 @@
+# Frontend — New Folder Structure (4 Features Only)
 
+```
 apps/web/
 │
 ├── app/
@@ -86,3 +88,23 @@ apps/web/
     ├── jurisdiction.ts                   # [NEW-2] JurisdictionResult, ComplianceRule, RegionProfile
     ├── blockchain.ts                     # [NEW-3] VerifyResult, AuditEvent, WalletState
     └── finetune.ts                       # [NEW-4] FinetuneJob, AdapterConfig, TrainingMetrics
+```
+
+---
+
+## New packages — `package.json`
+
+```json
+{
+  "dependencies": {
+    "@deepgram/sdk": "latest",
+    "wavesurfer.js": "latest",
+    "react-simple-maps": "latest",
+    "wagmi": "latest",
+    "viem": "latest",
+    "@rainbow-me/rainbowkit": "latest"
+  }
+}
+```
+
+> `recharts` is likely already present from the base setup — confirm before adding.
