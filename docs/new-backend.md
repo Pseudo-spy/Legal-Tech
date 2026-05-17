@@ -8,6 +8,7 @@
 
 ---
 
+```
 services/api/
 │
 ├── app/
@@ -136,3 +137,4 @@ services/api/
         ├── test_jurisdiction_api.py            # [NEW-2]
         ├── test_blockchain_api.py              # [NEW-3]
         └── test_finetune_api.py                # [NEW-4]
+```
