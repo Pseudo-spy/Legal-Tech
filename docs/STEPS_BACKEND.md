@@ -766,6 +766,233 @@ All rate limit keys must be scoped to the authenticated user ID so limits are pe
 - After the window resets (simulate by moving the Redis key TTL to 0), requests succeed again
 
 ---
+# ADVANCED FEATURES — ENGINEERING EXECUTION ROADMAP
+### LegalTech AI Platform — Phase Implementation Guide
+
+---
+
+## PHASE 1 — AI Legal Coach (Voice-Powered Contract Guidance Assistant)
+
+---
+
+### STEP 1.1 — Speech-to-Text Pipeline with OpenAI Whisper (Self-Hosted)
+
+Install and containerize Whisper using the `faster-whisper` library, which provides a CTranslate2-optimized runtime that is 4× faster than the original Whisper with lower memory usage. Add a new Docker service `whisper-service` to your `docker-compose.yml` using `python:3.11-slim` as the base image. Install `faster-whisper==1.1.0` and `ffmpeg` inside the container. Expose port `8001` internally. On startup, preload the `large-v3` model into memory using `CTranslate2` with `compute_type="int8"` for CPU or `float16` for GPU. Create a FastAPI sub-application at `/api/v1/voice/transcribe` that accepts multipart file uploads (`.webm`, `.wav`, `.ogg`, `.mp3`). Convert incoming audio to 16kHz mono WAV using `ffmpeg` subprocess call before passing to Whisper. Return a JSON response with `{ "transcript": str, "language": str, "confidence": float, "segments": [...] }`. Mount a shared Docker volume `/app/audio_tmp` for temporary file handling. Set `WHISPER_MODEL_SIZE` as an environment variable so the model tier can be changed without rebuilding the image.
+
+**Verification:**
+- POST a 30-second `.webm` audio clip to `/api/v1/voice/transcribe` and confirm transcript accuracy above 90% WER on legal vocabulary
+- Confirm `language` field auto-detects Hindi, Bengali, and English correctly from test clips
+- Measure p95 transcription latency under 4 seconds for a 30-second clip on 4-core CPU
+
+---
+
+### STEP 1.2 — Voice Session Orchestration and LangChain Legal Coach Agent
+
+Create a new FastAPI router `voice_coach.py` under `app/routers/`. Define a `POST /api/v1/voice/coach/session` endpoint that accepts `{ contract_id: str, user_id: str, audio_file: UploadFile }`. The endpoint must: (1) forward audio to the Whisper service via internal HTTP call using `httpx.AsyncClient`, (2) retrieve the parsed contract clauses from PostgreSQL using `contract_id`, (3) inject the transcript and relevant contract context into a LangChain `ConversationalRetrievalChain` backed by your existing Qdrant vector store, and (4) stream the LLM response back to the frontend via SSE. Define a `VoiceCoachAgent` class that wraps a LangChain `AgentExecutor` with three tools: `ClauseLookupTool` (queries Qdrant for relevant clauses by semantic similarity), `RiskExplainerTool` (fetches pre-computed risk scores from Redis by clause hash), and `SimplificationTool` (rewrites legalese into plain language via a dedicated LLM prompt). Store the conversation history per session in Redis using the key pattern `voice_coach:{user_id}:{session_id}` with a 1-hour TTL. Use `ConversationBufferWindowMemory` with `k=10` to keep context manageable. Route all LLM calls through your existing OpenRouter integration using `claude-3-haiku` as the default model for low-latency responses.
+
+**Verification:**
+- Assert that a question like "What does the indemnification clause mean?" returns a simplified explanation referencing the exact contract clause text
+- Confirm Redis stores conversation turns with correct TTL by inspecting `TTL voice_coach:{id}:{id}` in `redis-cli`
+- Confirm SSE stream opens within 800ms of the request and first token arrives within 1.5 seconds
+
+---
+
+### STEP 1.3 — Text-to-Speech Response with Coqui TTS (Self-Hosted)
+
+Add a `coqui-tts` Docker service to `docker-compose.yml` using the `ghcr.io/coqui-ai/tts` base image. Preload the `tts_models/en/ljspeech/tacotron2-DDC` model at container startup for English, and `tts_models/multilingual/multi-dataset/xtts_v2` for multilingual support (supports Hindi, Bengali, and 15+ other languages). Create a FastAPI endpoint `POST /api/v1/voice/synthesize` that accepts `{ text: str, language: str, speed: float }` and streams back an `audio/wav` response using `StreamingResponse`. Implement a Redis-backed audio cache with key `tts_cache:{sha256(text + language)}` and a 24-hour TTL to avoid re-synthesizing identical phrases. For production, add a Celery task `synthesize_legal_response` that pre-generates audio for common legal explanations (boilerplate clause explanations, risk summaries) during off-peak hours and stores them in the cache. In the voice coach endpoint from Step 1.2, after receiving the streamed LLM text response, fire the synthesis task asynchronously and return both the text SSE stream and a `synthesis_task_id` that the frontend can poll or use via a second SSE channel.
+
+**Verification:**
+- POST `{ "text": "This clause transfers all liability to you.", "language": "en", "speed": 1.0 }` and receive a valid WAV file with correct audio
+- Confirm cache hit returns audio within 50ms by making two identical requests and comparing response times
+- Test XTTS v2 with a Bengali text string and verify the output is intelligible
+
+---
+
+### STEP 1.4 — Frontend Voice Interface Component (Next.js 15)
+
+Create a `VoiceCoach` React component at `components/voice/VoiceCoach.tsx`. Use the browser's `MediaRecorder` API with `mimeType: 'audio/webm;codecs=opus'` to capture microphone input. Implement a `useVoiceRecorder` custom hook that manages states: `idle`, `recording`, `processing`, `speaking`. Render a push-to-talk button with a waveform visualizer built using the Web Audio API's `AnalyserNode` and a `<canvas>` element drawing `getByteTimeDomainData()` at 60fps. On recording stop, `MediaRecorder.stop()` assembles a `Blob`, which is converted to `FormData` and POSTed to `/api/v1/voice/coach/session` along with `contract_id`. Open an `EventSource` on the response SSE endpoint to receive streamed text tokens and render them progressively in a chat bubble. When the `synthesis_task_id` is received in the SSE stream, poll `GET /api/v1/voice/synthesize/status/{task_id}` every 500ms until complete, then fetch the audio URL and play it using the `HTMLAudioElement` API. Add a playback speed control (0.75×, 1×, 1.25×) that updates TTS speed on re-synthesis. Store conversation history in component state and display as a chat timeline with user voice inputs shown as transcript bubbles and AI responses shown with an audio play button. Gate the microphone permission request behind an explicit user action using `navigator.mediaDevices.getUserMedia`.
+
+**Verification:**
+- Open browser DevTools → Network tab and confirm the FormData POST includes a valid audio blob with non-zero size
+- Confirm the SSE stream delivers tokens progressively and the chat bubble updates character by character
+- Confirm the audio playback control plays the synthesized voice response without CORS errors
+
+---
+
+### STEP 1.5 — Voice Session Storage and Analytics
+
+Create a PostgreSQL table `voice_coach_sessions` with columns: `id UUID PRIMARY KEY`, `user_id UUID REFERENCES users(id)`, `contract_id UUID REFERENCES contracts(id)`, `session_start TIMESTAMPTZ`, `session_end TIMESTAMPTZ`, `transcript JSONB` (array of `{ role, text, timestamp }` objects), `topics_discussed TEXT[]`, `clauses_referenced UUID[]`, `language VARCHAR(10)`, `created_at TIMESTAMPTZ DEFAULT NOW()`. Write a Celery task `save_voice_session` that is triggered at session end and writes the full session data to this table. Additionally, extract clause IDs referenced during the session using a regex + LLM pass over the transcript and populate `clauses_referenced`. Create a `GET /api/v1/voice/sessions/{user_id}` endpoint that returns paginated session history. On the frontend, add a "Session History" drawer in the `VoiceCoach` component that lists past sessions with clickable transcripts and an option to resume a session (which re-loads the conversation history into `ConversationBufferWindowMemory`).
+
+**Verification:**
+- Trigger a complete session and query `SELECT * FROM voice_coach_sessions WHERE user_id = ?` to confirm all fields are populated
+- Confirm `clauses_referenced` correctly identifies at least 80% of clauses that were explicitly discussed in test sessions
+- Confirm session resume correctly re-loads context by asking a follow-up question that requires prior session knowledge
+
+---
+
+## PHASE 2 — Regional Law Intelligence & Jurisdiction-Aware Analysis
+
+---
+
+### STEP 2.1 — Jurisdiction Data Model and Legal Database Schema
+
+Create the following PostgreSQL tables. `jurisdictions` table: `id UUID PRIMARY KEY`, `country_code CHAR(2)`, `state_province VARCHAR(100)`, `display_name VARCHAR(200)`, `legal_system VARCHAR(50)` (common_law / civil_law / sharia / mixed), `currency VARCHAR(10)`, `official_languages TEXT[]`, `timezone VARCHAR(50)`, `created_at TIMESTAMPTZ`. `legal_rules` table: `id UUID PRIMARY KEY`, `jurisdiction_id UUID REFERENCES jurisdictions(id)`, `category VARCHAR(100)` (e.g., employment, IP, data_privacy, commercial), `rule_name VARCHAR(200)`, `rule_text TEXT`, `effective_date DATE`, `expiry_date DATE`, `citation VARCHAR(500)`, `source_url TEXT`, `embedding VECTOR(768)` (pgvector extension), `created_at TIMESTAMPTZ`. `contract_jurisdiction_analysis` table: `id UUID PRIMARY KEY`, `contract_id UUID REFERENCES contracts(id)`, `detected_jurisdiction_id UUID REFERENCES jurisdictions(id)`, `specified_jurisdiction_id UUID REFERENCES jurisdictions(id)`, `conflicts JSONB`, `compliance_gaps JSONB`, `risk_adjustments JSONB`, `analyzed_at TIMESTAMPTZ`. Enable `pgvector` on your PostgreSQL instance: `CREATE EXTENSION IF NOT EXISTS vector;`. Add an HNSW index: `CREATE INDEX ON legal_rules USING hnsw (embedding vector_cosine_ops) WITH (m=16, ef_construction=64);`.
+
+**Verification:**
+- Run `\d jurisdictions` and `\d legal_rules` in psql and confirm all columns and foreign keys are present
+- Run `SELECT * FROM pg_extension WHERE extname = 'vector';` and confirm pgvector is active
+- Insert 5 sample `legal_rules` rows and confirm `SELECT id FROM legal_rules ORDER BY embedding <=> $1 LIMIT 3` returns results
+
+---
+
+### STEP 2.2 — Legal Data Ingestion Pipeline for Indian and Global Jurisdictions
+
+Create a Celery task group `ingest_legal_data` under `tasks/jurisdiction_ingestion.py`. Implement scrapers for the following free sources: (1) **IndiaCode** (`https://www.indiacode.nic.in`) — scrape acts and sections using `httpx` + `BeautifulSoup4`, targeting the IT Act 2000, Contract Act 1872, NDA enforceability sections, and PDPB 2023 provisions; (2) **eGazette India** (`https://egazette.nic.in`) — download and parse gazette notifications as PDFs using `pdfminer.six`, extract structured text, and chunk by section; (3) **EUR-Lex** (`https://eur-lex.europa.eu/rest/annotation`) — query the public REST API for GDPR, ePrivacy Directive, and Digital Services Act texts; (4) **CanLII** (`https://www.canlii.org`) — scrape Canadian provincial contract law variations; (5) **CommonLII** (`http://www.commonlii.org`) — scrape common law jurisdictions including Singapore, Malaysia, and Australia. For each scraped legal text, chunk it into 512-token segments with 128-token overlap using LangChain's `RecursiveCharacterTextSplitter`, generate embeddings using `sentence-transformers/legal-bert-base-uncased` (a domain-specific model), and insert into both `legal_rules` (PostgreSQL) and a `jurisdiction_laws` collection in Qdrant. Store the raw source documents in a local MinIO bucket `legal-source-docs` (self-hosted, add to `docker-compose.yml`). Schedule the ingestion task to re-run every Sunday at 2 AM via Celery Beat with `crontab(hour=2, minute=0, day_of_week=0)`.
+
+**Verification:**
+- Run `SELECT COUNT(*) FROM legal_rules WHERE jurisdiction_id = (SELECT id FROM jurisdictions WHERE country_code = 'IN')` and confirm at least 500 rules exist after ingestion
+- Query Qdrant collection `jurisdiction_laws` and confirm point count matches PostgreSQL `legal_rules` count
+- Confirm MinIO bucket `legal-source-docs` contains the original PDF/HTML source files with correct metadata
+
+---
+
+### STEP 2.3 — Jurisdiction Auto-Detection from Contract Text
+
+Create a `JurisdictionDetector` class in `app/services/jurisdiction_detector.py`. This class must implement a multi-signal detection pipeline: (1) **Explicit clause detection** — use a regex pattern library (`legal_regex_patterns.py`) to find governing law clauses, e.g., `r"governed by.*laws of.*?(?P<jurisdiction>[A-Z][a-z]+ ?[A-Z]?[a-z]*)"`, covering 50+ variations of governing law and jurisdiction clauses; (2) **NER-based detection** — use `spaCy` with the `en_core_web_trf` model and a custom NER component trained to recognize `JURISDICTION` entities, court names, and regulatory body names; (3) **LLM fallback** — if regex and NER yield a confidence below 0.7, send the first 3000 characters of the contract to OpenRouter with a structured prompt requesting a JSON response `{ "country": str, "state": str, "confidence": float, "evidence": [str] }`; (4) **Conflict detection** — if multiple jurisdictions are detected (e.g., choice of law clause says UK but parties are Indian entities), flag this as a `JurisdictionConflict` with severity `HIGH`. Return a `JurisdictionDetectionResult` dataclass containing `primary_jurisdiction`, `secondary_jurisdictions`, `conflicts`, `confidence`, and `detection_method`. Cache results in Redis with key `jurisdiction:{contract_id}` and a 7-day TTL.
+
+**Verification:**
+- Test with a contract containing `"This agreement shall be governed by the laws of the State of Maharashtra, India"` and confirm `country_code='IN'` and `state_province='Maharashtra'` are detected with confidence above 0.9
+- Test with a contract containing conflicting jurisdiction signals and confirm a `JurisdictionConflict` is returned
+- Confirm Redis caches the detection result and second call completes in under 5ms
+
+---
+
+### STEP 2.4 — Jurisdiction-Aware Clause Risk Re-Scoring Engine
+
+Extend the existing clause risk analysis pipeline by creating a `JurisdictionRiskAdjuster` class in `app/services/risk_adjuster.py`. This class accepts the original clause risk scores (from your existing AI risk analyzer), the detected jurisdiction, and a list of matching legal rules from the `legal_rules` table, and outputs jurisdiction-adjusted risk scores. Implementation: (1) For each analyzed clause, query Qdrant's `jurisdiction_laws` collection with the clause embedding, filtered by `jurisdiction_id` metadata, to retrieve the top 5 most relevant legal rules; (2) Construct a LangChain `LLMChain` prompt that provides: the clause text, the original risk assessment, and the 5 relevant legal rules, and asks the LLM to output JSON `{ "adjusted_risk_level": str, "jurisdiction_delta": float, "jurisdiction_warnings": [str], "compliance_requirements": [str], "recommended_modifications": [str] }`; (3) Compute a `jurisdiction_delta` float between -1.0 and +1.0 representing whether the jurisdiction increases or decreases the clause risk relative to a neutral baseline; (4) For Indian contracts specifically, add hardcoded rule checks: Arbitration Act 1996 compliance for dispute resolution clauses, Stamp Duty requirements by state, and PDPB 2023 data handling obligations; (5) Store the adjusted analysis in the `contract_jurisdiction_analysis` table and push an update event to the frontend via an SSE channel `contract:{contract_id}:jurisdiction_update`.
+
+**Verification:**
+- Analyze a non-compete clause under Indian law and confirm a `jurisdiction_warning` about the unenforceability of non-competes post-employment under Indian Contract Act Section 27
+- Confirm the `jurisdiction_delta` for a California-governed contract's non-compete clause is strongly negative (California also bans them), producing a LOW adjusted risk
+- Confirm SSE event is received within 2 seconds of the analysis completing
+
+---
+
+### STEP 2.5 — Jurisdiction Intelligence Frontend Panel
+
+Create a `JurisdictionPanel` React component at `components/jurisdiction/JurisdictionPanel.tsx`. On contract load, call `GET /api/v1/contracts/{id}/jurisdiction` and display: a flag icon + jurisdiction name badge (use `country-flag-emoji` npm package), a confidence meter, and any detected conflicts highlighted in amber. Render a "Legal Rules Applied" accordion section listing each relevant legal rule with its citation, source link, and how it affected the risk score. Show a jurisdiction-adjusted risk score diff — e.g., "Original: HIGH → Adjusted for Maharashtra Law: MEDIUM" — with an explanation popover. Add a "Change Jurisdiction" override control that opens a modal with a searchable dropdown of all jurisdictions in the `jurisdictions` table (fetched from `GET /api/v1/jurisdictions`), allowing the user to manually specify a jurisdiction and trigger re-analysis. Implement an animated `JurisdictionConflictBanner` component that appears at the top of the contract view when conflicts are detected, showing the conflicting signals and a recommended resolution. On the contract PDF export, pass jurisdiction data to the existing PDF report generator and include a "Jurisdiction Summary" section with all applied rules and risk adjustments.
+
+**Verification:**
+- Load a contract with a Maharashtra governing law clause and confirm the flag, jurisdiction name, and confidence score display correctly
+- Trigger a manual jurisdiction override to `Singapore` and confirm the risk scores update within 3 seconds with new SSE data
+- Confirm the `JurisdictionConflictBanner` renders when a contract has both `"governed by English law"` and Indian party addresses
+
+---
+
+### STEP 2.6 — Jurisdiction Knowledge Base Management API
+
+Create a CRUD API for jurisdiction data management at `app/routers/jurisdiction_admin.py` behind an `admin` role guard. Endpoints: `GET /api/v1/admin/jurisdictions` (paginated list), `POST /api/v1/admin/jurisdictions` (create new jurisdiction), `PUT /api/v1/admin/jurisdictions/{id}` (update), `POST /api/v1/admin/legal-rules` (add a new legal rule with auto-embedding), `PUT /api/v1/admin/legal-rules/{id}` (update rule text and re-embed), `DELETE /api/v1/admin/legal-rules/{id}` (soft-delete by setting `expiry_date = NOW()`), `POST /api/v1/admin/jurisdictions/bulk-ingest` (trigger the Celery ingestion task for a specific jurisdiction). The `POST /api/v1/admin/legal-rules` endpoint must automatically: generate an embedding for the `rule_text` using `sentence-transformers/legal-bert-base-uncased`, upsert the point in Qdrant with `jurisdiction_id` and `category` metadata, and insert the row in PostgreSQL within a single database transaction that rolls back if either operation fails. Add a Prometheus metric `legal_rules_total` labelled by `jurisdiction_code` and `category` that is incremented on each insert and decremented on each soft-delete.
+
+**Verification:**
+- POST a new legal rule via the admin API and confirm it appears in both PostgreSQL and Qdrant with matching IDs
+- Trigger a failed Qdrant upsert (by temporarily stopping Qdrant) and confirm the PostgreSQL row is NOT inserted (transaction rollback)
+- Query `GET /metrics` and confirm `legal_rules_total{jurisdiction_code="IN", category="employment"}` reflects the correct count
+
+---
+
+## PHASE 3 — Blockchain Contract Verification & Immutable Audit Trail
+
+---
+
+### STEP 3.1 — Polygon PoS Node Setup and Smart Contract Architecture
+
+Use the **Polygon PoS** network (free, EVM-compatible, sub-cent gas fees) for all on-chain operations. For local development and testing, spin up a `hardhat` node inside a new Docker service `blockchain-node` using `node:20-alpine` and installing `hardhat` and `@nomicfoundation/hardhat-toolbox`. For staging and production, configure connections to Polygon Mumbai testnet (free faucet at `faucet.polygon.technology`) and Polygon Mainnet respectively, managed via environment variables `BLOCKCHAIN_NETWORK=mainnet|testnet|local`. Write two Solidity smart contracts in `blockchain/contracts/`. The first, `ContractRegistry.sol`, stores: `contractHash` (keccak256 of the PDF bytes), `metadataHash` (keccak256 of the JSON metadata), `uploaderAddress`, `timestamp`, `ipfsCid`, and emits a `ContractRegistered(bytes32 indexed contractHash, address indexed uploader, uint256 timestamp)` event. The second, `AuditTrail.sol`, stores an append-only log of audit events with: `contractHash`, `eventType` (enum: UPLOADED, ANALYZED, SIGNED, COUNTER_OFFERED, EXPORTED), `actorAddress`, `dataHash` (hash of the event payload), `previousEventHash` (linked list for tamper detection), `timestamp`. Deploy both contracts using `hardhat ignition` with deterministic deployment addresses stored in `blockchain/deployments/{network}.json`. Store ABIs in `blockchain/abis/` for use by the Python backend service.
+
+**Verification:**
+- Run `npx hardhat test` inside `blockchain/` and confirm all unit tests for `ContractRegistry.sol` and `AuditTrail.sol` pass
+- Deploy to local Hardhat network and confirm `ContractRegistered` event is emitted with correct `contractHash` by inspecting transaction receipt logs
+- Run `npx hardhat verify --network mumbai {address}` on testnet and confirm source code is verified on PolygonScan
+
+---
+
+### STEP 3.2 — IPFS Integration for Immutable Document Storage
+
+Add a `go-ipfs` (now `kubo`) Docker service to `docker-compose.yml` using the `ipfs/kubo:latest` image. Mount a persistent volume `/ipfs_data` for the IPFS repository. Expose the API port `5001` internally and the gateway port `8080` internally. In production, configure pinning to **web3.storage** (free tier: 5GB) as a fallback by storing `WEB3_STORAGE_TOKEN` in environment secrets. Create an `IPFSService` class in `app/services/ipfs_service.py` using the `ipfshttpclient` Python library. Implement `upload_contract(file_bytes: bytes, metadata: dict) -> IPFSUploadResult` which: (1) pins the raw PDF bytes to IPFS and records the CID; (2) creates a JSON metadata envelope `{ "contract_id": str, "sha256": str, "upload_timestamp": str, "platform": "legaltech-ai", "version": "1.0" }`, serializes it, and pins it as a second IPFS object; (3) returns `IPFSUploadResult(pdf_cid, metadata_cid, sha256_hash)`. Implement `retrieve_contract(cid: str) -> bytes` that fetches from the local IPFS node first, falling back to the public gateway `https://ipfs.io/ipfs/{cid}` with a 10-second timeout. Add an IPFS gateway health check endpoint `GET /api/v1/blockchain/ipfs/health` that tests connectivity to the local node.
+
+**Verification:**
+- Upload a test PDF via `IPFSService.upload_contract()` and confirm a CID string is returned in the format `Qm...` or `bafybe...`
+- Retrieve the uploaded document using the returned CID and confirm the bytes match the original file using SHA-256 comparison
+- Stop the local IPFS node and confirm retrieval falls back to the public gateway and still returns correct bytes
+
+---
+
+### STEP 3.3 — Python Blockchain Interaction Service
+
+Add `web3==6.15.0`, `eth-account==0.11.0`, and `py-solc-x` to `requirements.txt`. Create `app/services/blockchain_service.py` with a `BlockchainService` class. Initialize `Web3(Web3.HTTPProvider(os.environ['POLYGON_RPC_URL']))` where `POLYGON_RPC_URL` is set to `https://rpc-mumbai.maticvigil.com` for testnet (free, no API key required) or `https://polygon-rpc.com` for mainnet. Load the deployer private key from `BLOCKCHAIN_PRIVATE_KEY` environment variable and create an `Account` object. Load contract ABIs from `blockchain/abis/ContractRegistry.json` and `blockchain/abis/AuditTrail.json` and instantiate both contract objects using `web3.eth.contract(address=..., abi=...)`. Implement `register_contract(contract_id: str, pdf_bytes: bytes, metadata: dict) -> BlockchainRegistrationResult` which: computes `keccak256` of the PDF bytes and metadata JSON using `web3.keccak()`, calls `ContractRegistry.functions.register()` with both hashes and the IPFS CID, signs the transaction with the deployer account using `account.sign_transaction()`, sends it via `web3.eth.send_raw_transaction()`, and polls for receipt with `web3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)`. Implement `log_audit_event(contract_id: str, event_type: str, actor_address: str, payload: dict) -> str` which computes the hash of the payload, looks up the previous event hash for this contract from the last `AuditTrail` event log, and calls `AuditTrail.functions.logEvent()` with all fields. All blockchain calls must be wrapped in a Celery task `register_contract_on_chain` to avoid blocking the FastAPI request thread. Store the returned `tx_hash` and `block_number` in the `contract_blockchain_records` PostgreSQL table.
+
+**Verification:**
+- Call `register_contract()` with a test PDF and confirm `tx_hash` is a 66-character hex string starting with `0x`
+- Query PolygonScan Mumbai for the transaction hash and confirm the `ContractRegistered` event is visible in the transaction logs
+- Call `log_audit_event()` twice for the same contract and confirm the second event's `previousEventHash` matches the first event's computed hash
+
+---
+
+### STEP 3.4 — Contract Blockchain Records Database Schema
+
+Create a PostgreSQL migration adding two new tables. `contract_blockchain_records` table: `id UUID PRIMARY KEY`, `contract_id UUID REFERENCES contracts(id) UNIQUE`, `ipfs_pdf_cid VARCHAR(100) NOT NULL`, `ipfs_metadata_cid VARCHAR(100) NOT NULL`, `pdf_sha256 CHAR(64) NOT NULL`, `metadata_sha256 CHAR(64) NOT NULL`, `polygon_tx_hash CHAR(66)`, `polygon_block_number BIGINT`, `polygon_network VARCHAR(20)`, `contract_address CHAR(42)`, `registration_status VARCHAR(20) DEFAULT 'pending'` (pending / confirmed / failed), `confirmed_at TIMESTAMPTZ`, `created_at TIMESTAMPTZ DEFAULT NOW()`. `audit_trail_events` table: `id UUID PRIMARY KEY`, `contract_id UUID REFERENCES contracts(id)`, `event_type VARCHAR(50) NOT NULL`, `actor_user_id UUID REFERENCES users(id)`, `actor_wallet_address CHAR(42)`, `payload JSONB NOT NULL`, `payload_hash CHAR(66) NOT NULL`, `previous_event_hash CHAR(66)`, `polygon_tx_hash CHAR(66)`, `polygon_block_number BIGINT`, `on_chain_status VARCHAR(20) DEFAULT 'pending'`, `occurred_at TIMESTAMPTZ DEFAULT NOW()`, `confirmed_at TIMESTAMPTZ`. Add a partial index: `CREATE INDEX idx_audit_trail_contract ON audit_trail_events(contract_id) WHERE on_chain_status = 'confirmed'`. Create a Celery task `confirm_blockchain_records` that runs every 5 minutes, fetches all `pending` records, queries the Polygon node for transaction receipts, and updates `registration_status` and `confirmed_at` upon confirmation.
+
+**Verification:**
+- Insert a pending record and run `confirm_blockchain_records` manually; confirm `registration_status` updates to `confirmed` and `confirmed_at` is set
+- Query `SELECT * FROM audit_trail_events WHERE contract_id = ? ORDER BY occurred_at` and confirm the `previous_event_hash` chain is unbroken (each row's hash matches the next row's `previous_event_hash`)
+- Confirm the partial index is used by running `EXPLAIN SELECT * FROM audit_trail_events WHERE contract_id = ? AND on_chain_status = 'confirmed'` and checking for `Index Scan`
+
+---
+
+### STEP 3.5 — Contract Integrity Verification Endpoint
+
+Create a `ContractVerifier` class in `app/services/contract_verifier.py`. Implement `verify_contract_integrity(contract_id: str, pdf_bytes: bytes) -> VerificationResult`. This method must: (1) Compute the SHA-256 hash of the provided `pdf_bytes`; (2) Look up the stored `pdf_sha256` in `contract_blockchain_records` for this `contract_id`; (3) Compare the two hashes — if they differ, set `tampered=True`; (4) Query the Polygon node using `ContractRegistry.functions.getContract(contract_id_hash).call()` to retrieve the on-chain hash; (5) Compare the on-chain hash against the local stored hash — this guards against database tampering; (6) Fetch the IPFS metadata by CID and verify its `sha256` field matches; (7) Return a `VerificationResult` dataclass: `{ "contract_id": str, "verified": bool, "tampered": bool, "on_chain_match": bool, "ipfs_match": bool, "blockchain_timestamp": datetime, "tx_hash": str, "polygon_scan_url": str, "verification_certificate": dict }`. Expose this as `POST /api/v1/blockchain/verify` accepting a file upload + `contract_id`. Additionally, create `GET /api/v1/blockchain/audit-trail/{contract_id}` that returns the full ordered audit trail from PostgreSQL, cross-referenced with on-chain events fetched via `AuditTrail.functions.getEvents(contract_id_hash)`.
+
+**Verification:**
+- Upload the original contract PDF to `/api/v1/blockchain/verify` and confirm `verified=true`, `tampered=false`, `on_chain_match=true`
+- Modify one byte of the PDF locally and upload to `/api/v1/blockchain/verify`; confirm `tampered=true` and `verified=false`
+- Confirm the audit trail endpoint returns events in chronological order with correct `polygon_scan_url` links pointing to valid PolygonScan transactions
+
+---
+
+### STEP 3.6 — Digital Signature Workflow with MetaMask / WalletConnect
+
+Install `wagmi@2`, `viem`, and `@web3modal/wagmi` in the Next.js frontend. Configure `WagmiConfig` in `app/providers.tsx` with Polygon mainnet and Mumbai testnet chains. Create a `BlockchainSignature` React component at `components/blockchain/BlockchainSignature.tsx` that: (1) Renders a "Connect Wallet" button using Web3Modal's `w3m-button` component; (2) On wallet connection, displays the wallet address and current network (warns if not on Polygon); (3) Renders a "Sign & Register Contract" button that calls `useSignMessage` from `wagmi` with a structured `personal_sign` message: `"I, {wallet_address}, hereby sign contract {contract_id} with document hash {sha256} on {timestamp}. LegalTech AI Platform."`; (4) POSTs the `{ contract_id, signature, wallet_address, message }` to `POST /api/v1/blockchain/sign` on the backend; (5) The backend endpoint verifies the signature using `web3.eth.account.recover_message(message, signature)` to confirm wallet ownership, stores the signature in `audit_trail_events` as an `SIGNED` event, and triggers the `register_contract_on_chain` Celery task; (6) Returns a transaction hash and PolygonScan URL for the user to verify independently. Render a `VerificationBadge` component on the contract card that shows "Blockchain Verified ✓" when `registration_status = 'confirmed'`, linking to the PolygonScan transaction.
+
+**Verification:**
+- Connect MetaMask to Mumbai testnet, click "Sign & Register", sign the message, and confirm a PolygonScan Mumbai URL is returned with a confirmed transaction
+- Call `web3.eth.account.recover_message()` on the backend with the signature and confirm it returns the correct wallet address
+- Confirm the `VerificationBadge` appears on the contract card within 30 seconds of the Celery task completing (via SSE or polling)
+
+---
+
+### STEP 3.7 — Blockchain Audit Trail Frontend Dashboard
+
+Create an `AuditTrailDashboard` React component at `components/blockchain/AuditTrailDashboard.tsx`. Fetch audit events from `GET /api/v1/blockchain/audit-trail/{contract_id}` and render them as a vertical timeline using a custom CSS timeline component (no external timeline library needed — use `position: relative` with a left border pseudo-element). Each event node must display: event type icon (upload, analyze, sign, export), actor wallet address (truncated to `0x1234...abcd`), human-readable timestamp, event payload summary, on-chain status badge (Pending / Confirmed), and a "View on PolygonScan" link. At the top of the dashboard, render a `ContractVerificationCard` showing the IPFS CID with a link to `https://ipfs.io/ipfs/{cid}`, the SHA-256 hash, the Polygon transaction hash, block number, block timestamp, and a large "VERIFIED" or "TAMPERED" status banner with appropriate color. Add a "Download Verification Certificate" button that calls `GET /api/v1/blockchain/certificate/{contract_id}` and downloads a JSON file containing all verification proofs, suitable for legal submission. Add a "Verify Now" button that opens a file input, accepts a PDF upload, and calls `POST /api/v1/blockchain/verify` to re-run integrity verification, displaying the full `VerificationResult` in a modal.
+
+**Verification:**
+- Load the dashboard for a verified contract and confirm all audit events display with correct timestamps and PolygonScan links
+- Click "Verify Now", upload the original contract PDF, and confirm the "VERIFIED" banner displays within 5 seconds
+- Click "Download Verification Certificate" and confirm the downloaded JSON contains `tx_hash`, `ipfs_cid`, `sha256`, `blockchain_timestamp`, and `on_chain_match: true`
+
+---
+
+### STEP 3.8 — Blockchain Service Resilience and Gas Management
+
+In `blockchain_service.py`, implement a `GasEstimator` utility that calls `web3.eth.gas_price` and applies a 20% buffer: `gas_price = int(web3.eth.gas_price * 1.2)`. For mainnet, integrate with the **Polygon Gas Station** free API at `https://gasstation.polygon.technology/v2` to fetch `safeLow`, `standard`, and `fast` gas prices, selecting `standard` by default and `fast` when the `priority=high` flag is set by the caller. Implement a retry decorator `@blockchain_retry(max_attempts=3, backoff_factor=2)` that retries on `TransactionNotFound`, `TimeExhausted`, and connection errors. Add a circuit breaker using the `pybreaker` library (`pip install pybreaker`) that opens after 5 consecutive failures and resets after 60 seconds, falling back to a `pending` local-only record. Create a `BlockchainHealthMonitor` Celery Beat task that runs every 10 minutes: checks Polygon node connectivity, confirms the `ContractRegistry` contract is reachable via `functions.owner().call()`, logs block latency, and pushes a `blockchain_health` metric to Prometheus. Store the current Polygon block number in Redis key `blockchain:latest_block` updated on each health check.
+
+**Verification:**
+- Simulate a Polygon RPC failure by setting an invalid `POLYGON_RPC_URL` and confirm the circuit breaker opens after 5 failures and the contract record is saved with `registration_status='pending'`
+- Confirm Prometheus metric `blockchain_health_status{network="mumbai"}` equals `1` when healthy and `0` when the circuit is open
+- Verify that a retry on `TimeExhausted` does not double-submit the transaction by confirming only one `ContractRegistered` event exists on-chain for the contract
+
+---
+
+*End of STEPS.md — Phase 1, Phase 2, Phase 3*
 
 ## PHASE 14 — Testing
 
